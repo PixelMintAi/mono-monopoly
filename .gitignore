@@ -1,0 +1,101 @@
+# Dependencies
+node_modules
+.pnpm-store/
+.pnpm-debug.log*
+
+# Build outputs
+dist
+build
+.next
+out
+*.tsbuildinfo
+
+# Testing
+coverage
+.nyc_output
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE and editors
+.idea
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Cache directories
+.cache
+.turbo
+.eslintcache
+.stylelintcache
+.parcel-cache
+
+# TypeScript
+*.tsbuildinfo
+
+# Misc
+.DS_Store
+*.pem
+.vercel
+.turbo
+
+# Local development
+*.local
+
+# Storybook
+storybook-static
+
+# Coverage directory used by tools like istanbul
+coverage
+*.lcov
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variable files
+.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+
+# Vercel
+.vercel
+
+# Turborepo
+.turbo
+
+# Build artifacts
+dist/
+build/
+out/
+.next/
+storybook-static/
+
+# Generated files
+*.generated.*
+*.min.*
+*.bundle.* 

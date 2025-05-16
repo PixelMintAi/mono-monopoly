@@ -1,0 +1,339 @@
+import { Server, Socket } from 'socket.io';
+import { Player, Room, SocketEvents, Space } from '@monopoly/shared';
+import { BOARD_SPACES } from '@monopoly/shared/constants';
+
+// ─── Helpers ────────────────────────────────────────────────────────────────────
+
+// Validate that a room's state is well‑formed before broadcasting
+function validateRoomState(room: Room): boolean {
+  if (!room || !room.players || !room.boardSpaces) return false;
+  if (room.currentPlayerIndex >= room.players.length) return false;
+  if (room.players.some(p => !p.id || !p.name)) return false;
+  return true;
+}
+
+// Broadcast an error message to everyone in a room
+function broadcastError(io: Server, roomId: string, error: string) {
+  io.to(roomId).emit('error', error);
+  console.error(`Room ${roomId} error:`, error);
+}
+
+// Broadcast the full game state to everyone in a room
+function broadcastGameState(io: Server, room: Room) {
+  if (!validateRoomState(room)) {
+    console.error('Invalid room state, not broadcasting:', room);
+    return;
+  }
+  io.to(room.id).emit('gameStateUpdated', {
+    roomId: room.id,
+    players: room.players,
+    currentPlayerIndex: room.currentPlayerIndex,
+    gameStarted: room.gameStarted,
+    lastDiceRoll: room.lastDiceRoll,
+    boardSpaces: room.boardSpaces,
+  });
+}
+
+// ─── Main Socket Setup ─────────────────────────────────────────────────────────
+
+export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
+  io.on('connection', (socket: Socket) => {
+    console.log('Client connected:', socket.id);
+
+    // ─── State Queries ────────────────────────────────────────────────
+
+    // Client asks for the current game state
+    socket.on('requestGameState', ({ roomId }) => {
+      const room = rooms.get(roomId);
+      if (!room) {
+        return socket.emit('error', 'Room not found');
+      }
+      socket.emit('gameStateUpdated', {
+        roomId: room.id,
+        players: room.players,
+        currentPlayerIndex: room.currentPlayerIndex,
+        gameStarted: room.gameStarted,
+        lastDiceRoll: room.lastDiceRoll,
+        boardSpaces: room.boardSpaces,
+      });
+    });
+
+    // Client acknowledges receipt of the state
+    socket.on('stateAcknowledged', ({ roomId }) => {
+      const room = rooms.get(roomId);
+      if (!room) return;
+      console.log(`Player ${socket.id} acknowledged state in room ${roomId}`);
+      socket.emit('waitingStatus', {
+        roomId,
+        waitingForPlayers: !room.gameStarted && room.players.length < room.settings.maxPlayers,
+        currentPlayers: room.players.length,
+        maxPlayers: room.settings.maxPlayers,
+      });
+    });
+
+    // ─── Room Lifecycle ──────────────────────────────────────────────
+
+    // Create a new room
+    socket.on('createRoom', ({ roomId, settings, username }: SocketEvents['createRoom']) => {
+      if (rooms.has(roomId)) {
+        return socket.emit('error', 'Room already exists');
+      }
+      // initialize board
+      const boardSpaces: Space[] = BOARD_SPACES.map(space => ({ ...space, ownedBy: null }));
+
+      const room: Room = {
+        id: roomId,
+        settings,
+        players: [{
+          id: socket.id,
+          name: username,
+          color: '#FF0000',
+          position: 0,
+          money: settings.startingAmount,
+          properties: [],
+          inJail: false,
+          jailTurns: 0,
+          cards: [],
+          hasRolled: false,
+        }],
+        gameStarted: false,
+        currentPlayerIndex: 0,
+        boardSpaces,
+        lastDiceRoll: null,
+      };
+
+      if (!validateRoomState(room)) {
+        return socket.emit('error', 'Invalid room state');
+      }
+
+      rooms.set(roomId, room);
+      socket.join(roomId);
+      socket.emit('roomCreated', { roomId });
+      socket.emit('waitingStatus', {
+        roomId,
+        waitingForPlayers: true,
+        currentPlayers: 1,
+        maxPlayers: settings.maxPlayers,
+      });
+      broadcastGameState(io, room);
+      console.log(`Room ${roomId} created by ${username}`);
+    });
+
+    // Join an existing room
+    socket.on('joinRoom', ({ roomId, username }: SocketEvents['joinRoom']) => {
+      const room = rooms.get(roomId);
+      if (!room) {
+        return socket.emit('error', 'Room not found');
+      }
+      if (room.gameStarted) {
+        return socket.emit('error', 'Game has already started');
+      }
+      if (room.players.length >= room.settings.maxPlayers) {
+        return socket.emit('error', 'Room is full');
+      }
+
+      const player: Player = {
+        id: socket.id,
+        name: username,
+        color: '#0000FF',
+        position: 0,
+        money: room.settings.startingAmount,
+        properties: [],
+        inJail: false,
+        jailTurns: 0,
+        cards: [],
+        hasRolled: false,
+      };
+      room.players.push(player);
+      socket.join(roomId);
+
+      // Confirmation to the new player
+      socket.emit('joinConfirmed', {
+        roomId,
+        playerId: socket.id,
+        waitingForPlayers: room.players.length < room.settings.maxPlayers,
+        currentPlayers: room.players.length,
+        maxPlayers: room.settings.maxPlayers,
+      });
+      // Notify everyone of updated waiting status & state
+      io.to(roomId).emit('waitingStatus', {
+        roomId,
+        waitingForPlayers: room.players.length < room.settings.maxPlayers,
+        currentPlayers: room.players.length,
+        maxPlayers: room.settings.maxPlayers,
+      });
+      broadcastGameState(io, room);
+      console.log(`${username} joined room ${roomId}`);
+    });
+
+    // Start the game
+    socket.on('startGame', ({ roomId }: SocketEvents['startGame']) => {
+      const room = rooms.get(roomId);
+      if (!room) return socket.emit('error', 'Room not found');
+      if (room.players.length < 2) return socket.emit('error', 'Need at least 2 players to start');
+      if (!validateRoomState(room)) {
+        return broadcastError(io, roomId, 'Invalid room state');
+      }
+
+      room.gameStarted = true;
+      room.currentPlayerIndex = 0;
+      room.players.forEach(p => (p.hasRolled = false));
+
+      io.to(roomId).emit('gameStarted', {
+        roomId,
+        players: room.players,
+        currentPlayerIndex: room.currentPlayerIndex,
+      });
+      broadcastGameState(io, room);
+      console.log(`Game started in room ${roomId}`);
+    });
+
+    // ─── Gameplay Actions ────────────────────────────────────────────
+
+    // Roll the dice
+    socket.on('rollDice', ({ roomId }: SocketEvents['rollDice']) => {
+      const room = rooms.get(roomId);
+      if (!room) return socket.emit('error', 'Room not found');
+
+      const current = room.players[room.currentPlayerIndex];
+      if (!current || current.id !== socket.id) {
+        return socket.emit('error', 'Not your turn');
+      }
+      if (current.hasRolled) {
+        return socket.emit('error', 'You have already rolled this turn');
+      }
+
+      const dice1 = Math.floor(Math.random() * 6) + 1;
+      const dice2 = Math.floor(Math.random() * 6) + 1;
+      const total = dice1 + dice2;
+
+      current.hasRolled = true;
+      current.position = (current.position + total) % room.boardSpaces.length;
+      room.lastDiceRoll = { dice1, dice2, playerId: current.id };
+
+      const space = room.boardSpaces[current.position];
+      if (['city', 'airport', 'utility'].includes(space.type)) {
+        if (space.ownedBy === null) {
+          io.to(roomId).emit('propertyAvailable', {
+            playerId: current.id,
+            propertyId: space.id,
+            price: space.price,
+          });
+        } else if (space.ownedBy.id !== current.id) {
+          const rent = space.rent ?? 0;
+          current.money -= rent;
+          space.ownedBy.money += rent;
+        }
+      }
+
+      io.to(roomId).emit('diceRolled', room.lastDiceRoll);
+      broadcastGameState(io, room);
+      console.log(`Player ${current.name} rolled ${dice1} & ${dice2}`);
+    });
+
+    // Buy a property
+    socket.on('buyProperty', ({ roomId, propertyId }: SocketEvents['buyProperty']) => {
+      const room = rooms.get(roomId);
+      if (!room) return socket.emit('error', 'Room not found');
+
+      const current = room.players[room.currentPlayerIndex];
+      if (!current || current.id !== socket.id) {
+        return socket.emit('error', 'Not your turn');
+      }
+
+      const property = room.boardSpaces.find(s => s.id === propertyId);
+      if (!property || property.ownedBy !== null) {
+        return socket.emit('error', 'Property not available for purchase');
+      }
+      if (typeof property.price !== 'number') {
+        return socket.emit('error', 'Property price is invalid');
+      }
+      if (current.money < property.price) {
+        return socket.emit('error', 'Not enough money to buy property');
+      }
+
+      property.ownedBy = current;
+      current.money -= property.price;
+      current.properties.push(property);
+
+      io.to(roomId).emit('propertyBought', {
+        playerId: current.id,
+        propertyId: property.id,
+      });
+      broadcastGameState(io, room);
+      console.log(`Player ${current.name} bought ${property.name}`);
+    });
+
+    // End the current turn
+    socket.on('endTurn', ({ roomId }: SocketEvents['endTurn']) => {
+      const room = rooms.get(roomId);
+      if (!room) return socket.emit('error', 'Room not found');
+
+      const current = room.players[room.currentPlayerIndex];
+      if (!current || current.id !== socket.id) {
+        return socket.emit('error', 'Not your turn');
+      }
+      if (!current.hasRolled) {
+        return socket.emit('error', 'You must roll before ending turn');
+      }
+
+      room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
+      room.players[room.currentPlayerIndex].hasRolled = false;
+      room.lastDiceRoll = null;
+
+      io.to(roomId).emit('turnChanged', { nextPlayerIndex: room.currentPlayerIndex });
+      broadcastGameState(io, room);
+      console.log(`Turn ended, next: ${room.players[room.currentPlayerIndex].name}`);
+    });
+
+    // ─── Cleanup ──────────────────────────────────────────────────────
+
+    socket.on('disconnect', () => {
+      console.log('Client disconnected:', socket.id);
+
+      rooms.forEach((room, roomId) => {
+        const idx = room.players.findIndex(p => p.id === socket.id);
+        if (idx === -1) return;
+
+        room.players.splice(idx, 1);
+
+        // If empty, delete the room
+        if (room.players.length === 0) {
+          rooms.delete(roomId);
+          console.log(`Room ${roomId} deleted (empty)`);
+          return;
+        }
+
+        // Adjust turn index
+        if (room.currentPlayerIndex >= room.players.length) {
+          room.currentPlayerIndex = 0;
+        }
+
+        // Notify about waiting status if game not started
+        if (!room.gameStarted) {
+          io.to(roomId).emit('waitingStatus', {
+            roomId,
+            waitingForPlayers: room.players.length < room.settings.maxPlayers,
+            currentPlayers: room.players.length,
+            maxPlayers: room.settings.maxPlayers,
+          });
+        }
+
+        // Broadcast updated game state or error
+        if (validateRoomState(room)) {
+          broadcastGameState(io, room);
+          io.to(roomId).emit('playerLeft', {
+            playerId: socket.id,
+            waitingForPlayers: !room.gameStarted && room.players.length < room.settings.maxPlayers,
+            currentPlayers: room.players.length,
+            maxPlayers: room.settings.maxPlayers,
+          });
+        } else {
+          broadcastError(io, roomId, 'Invalid room state after disconnect');
+        }
+        console.log(`Player removed from room ${roomId}`);
+      });
+    });
+
+  });
+}
