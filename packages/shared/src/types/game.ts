@@ -3,11 +3,12 @@ import { z } from 'zod';
 export const SpaceSchema = z.object({
   id: z.string(),
   name: z.string(),
-  type: z.enum(['city', 'airport', 'utility', 'tax', 'chance', 'community', 'corner']),
+  type: z.enum(['city', 'airport', 'utility', 'tax', 'chance', 'community', 'corner','treasure','special','community','surprise']),
   price: z.number().optional(),
   rent: z.number().optional(),
   ownedBy: z.any().nullable(),
-  position: z.number()
+  country:z.string().optional(),
+  position: z.string(),
 });
 
 export type Space = z.infer<typeof SpaceSchema>;
