@@ -5,6 +5,8 @@ import { Socket } from 'socket.io-client';
 // Zod schemas for runtime validation
 const playerSchema = z.object({
   id: z.string(),
+  uuid:z.string(),
+  isLeader:z.boolean(),
   name: z.string(),
   color: z.string(),
   position: z.number().min(0).max(39),
@@ -14,6 +16,7 @@ const playerSchema = z.object({
   jailTurns: z.number().min(0),
   cards: z.array(z.any()),
   hasRolled: z.boolean(),
+  bankRupt:z.boolean()
 });
 
 const spaceSchema = z.object({
@@ -29,8 +32,18 @@ const spaceSchema = z.object({
   ownedBy: z.string().nullable(),
 });
 
+const gameSettingsSchema = z.object({
+  map: z.literal('Classic'),
+  maxPlayers: z.number().min(2).max(4),
+  startingAmount: z.number().min(1000),
+  cryptoPoolActivated:z.boolean(),
+  poolAmountToEnter:z.number()
+});
+
+
 const gameStateSchema = z.object({
   players: z.array(playerSchema),
+  settings: gameSettingsSchema,
   currentPlayerIndex: z.number().min(0),
   boardSpaces: z.array(spaceSchema),
   lastDiceRoll: z.object({
@@ -40,12 +53,6 @@ const gameStateSchema = z.object({
   }).nullable(),
   gameStarted: z.boolean(),
   roomId: z.string(),
-});
-
-const gameSettingsSchema = z.object({
-  map: z.literal('Classic'),
-  maxPlayers: z.number().min(2).max(4),
-  startingAmount: z.number().min(1000),
 });
 
 // TypeScript types inferred from Zod schemas
@@ -75,7 +82,8 @@ interface GameStore {
   endTurn: () => void;
   buyProperty: () => void;
   startGame: () => void;
-  createRoom: (settings: GameSettings, username: string) => Promise<string>;
+  createRoom: (settings: GameSettings, username: string,playerUUID:string) => Promise<string>;
+  updateSettings:(settings:GameSettings)=>void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -161,7 +169,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     socket.emit('startGame', { roomId: gameState.roomId });
   },
 
-  createRoom: async (settings: GameSettings, username: string): Promise<string> => {
+  createRoom: async (settings: GameSettings, username: string,playerUUID:string): Promise<string> => {
     const { socket } = get();
     if (!socket) {
       throw new Error('Socket not connected');
@@ -174,7 +182,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return new Promise((resolve, reject) => {
         const roomId = crypto.randomUUID();
         
-        socket.emit('createRoom', { roomId, settings, username });
+        socket.emit('createRoom', { roomId, settings, username,playerUUID });
 
         const timeoutId = setTimeout(() => {
           reject(new Error('Room creation timed out'));
@@ -195,4 +203,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
       throw new Error('Invalid game settings');
     }
   },
+  updateSettings: (newSettings: Partial<GameSettings>) => {
+  const { socket, gameState, setError } = get();
+  if (!socket || !gameState) {
+    setError("Socket not connected or game not initialized");
+    return;
+  }
+  console.log('entry ')
+
+  // Merge new settings with current settings
+  const updatedSettings = {
+    ...gameState.settings,
+    ...newSettings,
+  };
+
+  try {
+    // Validate with Zod
+    gameSettingsSchema.parse(updatedSettings);
+    console
+    socket.emit('updateSettings', {
+      roomId: gameState.roomId,
+      settings: updatedSettings,
+    });
+  } catch (error) {
+    console.error('Invalid settings update:', error);
+    setError("Invalid settings update");
+  }
+},
+
 })); 

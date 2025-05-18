@@ -14,6 +14,11 @@ export function useGame({ username }: UseGameProps) {
   
   const [gameState, setGameState] = useState<GameState>({
     players: [],
+    settings:{
+      map: 'Classic',
+      maxPlayers: 4,
+      startingAmount: 1500,
+    },
     currentPlayerIndex: 0,
     gameStarted: false,
     roomId: ''

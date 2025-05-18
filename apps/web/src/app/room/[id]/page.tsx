@@ -1,4 +1,8 @@
+'use client';
+import { useEffect, useState } from 'react';
 import { RoomClient } from './RoomClient';
+import Navbar from '@/components/Navbar';
+import RoomDashboard from '@/components/RoomDashboard';
 
 interface RoomPageProps {
   params: {
@@ -7,20 +11,22 @@ interface RoomPageProps {
   searchParams: { username?: string };
 }
 
-export default async function RoomPage({ params, searchParams }: RoomPageProps) {
-  const { id } = await params;
-  const { username } = searchParams;
+export default function RoomPage({ params, searchParams }: RoomPageProps) {
+   const { id } = params;
+  const [username, setusername] = useState<string>("");
+  useEffect(()=>{
+    const initialName=localStorage.getItem('usernickname')
+    if(initialName){
+        setusername(initialName)
+    }
+  },[])
 
-  if (!username) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white mb-4">Username Required</h1>
-          <p className="text-gray-400">Please enter a username to join the room</p>
-        </div>
-      </div>
-    );
-  }
+  return (
+    <div>
+      <Navbar/>
+      <RoomDashboard roomId={id}/>
+    </div>
+  )
 
-  return <RoomClient roomId={id} username={username} />;
+  // return <RoomClient roomId={id} username={username} />;
 } 

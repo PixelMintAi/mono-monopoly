@@ -1,7 +1,7 @@
-import { useEffect, useCallback, useRef } from 'react';
-import { useSocket } from './useSocket';
-import { useGameStore } from '@/store/gameStore';
-import type { GameState } from '@/store/gameStore';
+import { useEffect, useCallback, useRef } from "react";
+import { useSocket } from "./useSocket";
+import { useGameStore } from "@/store/gameStore";
+import type { GameState } from "@/store/gameStore";
 
 export function useGameSync(roomId: string) {
   const { socket, isConnected } = useSocket();
@@ -11,44 +11,49 @@ export function useGameSync(roomId: string) {
     setError,
     setIsRolling,
     setGameMessage,
+    gameState: currentGameState
   } = useGameStore();
 
-  // Use refs to access latest game state without causing re-renders
-  const gameStateRef = useRef<GameState | null>(null);
-  
-  // Update ref when game state changes
+  const gameStateRef = useRef<GameState | null>(currentGameState);
   useEffect(() => {
-    gameStateRef.current = useGameStore.getState().gameState;
-  }, []);
+    gameStateRef.current = currentGameState;
+  }, [currentGameState]);
 
-  // Set socket in store when available
+  const refreshGameState = useCallback(() => {
+    if (socket?.connected && roomId) {
+      console.log("[GameSync] Manually refreshing game state");
+      socket.emit("requestGameState", { roomId });
+    }
+  }, [socket, roomId]);
+
   useEffect(() => {
-    setSocket(socket);
+    if (socket) {
+      setSocket(socket);
+    }
   }, [socket, setSocket]);
 
-  // Memoize event handlers with stable dependencies
   const handleConnect = useCallback(() => {
     if (!socket || !roomId) return;
-    console.log('[GameSync] Socket connected', { socketId: socket.id, roomId });
-    socket.emit('requestGameState', { roomId });
+    console.log("[GameSync] Socket connected:", socket.id);
+    socket.emit("requestGameState", { roomId });
+    socket.emit("stateAcknowledged", { roomId });
   }, [socket, roomId]);
 
   const handleDisconnect = useCallback(() => {
-    console.log('[GameSync] Socket disconnected');
-    setError('Disconnected from server');
+    console.warn("[GameSync] Disconnected from server");
+    setError("Disconnected from server");
   }, [setError]);
 
   const handleGameStateUpdate = useCallback((state: GameState) => {
-    console.log('[GameSync] Game state updated', { state });
+    console.log("[GameSync] Received gameStateUpdated", state);
     setGameState(state);
     gameStateRef.current = state;
   }, [setGameState]);
 
   const handleDiceRolled = useCallback((roll: { dice1: number; dice2: number; playerId: string }) => {
     setIsRolling(false);
-    const currentState = gameStateRef.current;
-    const player = currentState?.players.find(p => p.id === roll.playerId);
-    setGameMessage(`${player?.name || 'A player'} rolled ${roll.dice1} and ${roll.dice2}`);
+    const player = gameStateRef.current?.players.find((p) => p.id === roll.playerId);
+    setGameMessage(`${player?.name || "A player"} rolled ${roll.dice1} and ${roll.dice2}`);
   }, [setIsRolling, setGameMessage]);
 
   const handlePropertyAvailable = useCallback((data: { playerId: string; propertyId: string; price: number }) => {
@@ -58,29 +63,44 @@ export function useGameSync(roomId: string) {
   }, [socket?.id, setGameMessage]);
 
   const handlePropertyBought = useCallback((data: { playerId: string; propertyId: string }) => {
-    const currentState = gameStateRef.current;
-    const player = currentState?.players.find(p => p.id === data.playerId);
+    const player = gameStateRef.current?.players.find((p) => p.id === data.playerId);
     if (player) {
       setGameMessage(`${player.name} bought a property!`);
     }
   }, [setGameMessage]);
 
   const handleTurnChanged = useCallback((data: { nextPlayerIndex: number }) => {
-    const currentState = gameStateRef.current;
-    const nextPlayer = currentState?.players[data.nextPlayerIndex];
+    const nextPlayer = gameStateRef.current?.players[data.nextPlayerIndex];
     if (nextPlayer) {
       setGameMessage(`${nextPlayer.name}'s turn`);
     }
   }, [setGameMessage]);
 
+  const handlePlayerJoined = useCallback((data: { playerId: string; playerName: string; playerCount: number; maxPlayers: number }) => {
+    console.log(`[GameSync] Player joined: ${data.playerName} (${data.playerCount}/${data.maxPlayers})`);
+    setGameMessage(`${data.playerName} joined the game!`);
+    // Ensure state refresh
+    socket?.emit("requestGameState", { roomId });
+  }, [socket, roomId, setGameMessage]);
+
+  const handleWaitingStatus = useCallback((data: { roomId: string; waitingForPlayers: boolean; currentPlayers: number; maxPlayers: number }) => {
+    console.log(`[GameSync] Waiting for players: ${data.currentPlayers}/${data.maxPlayers}`);
+    if (data.waitingForPlayers) {
+      setGameMessage(`Waiting for players (${data.currentPlayers}/${data.maxPlayers})`);
+    }
+  }, [setGameMessage]);
+
   const handleError = useCallback((message: string) => {
-    console.error('[GameSync] Error:', message);
+    console.error("[GameSync] Server error:", message);
     setError(message);
   }, [setError]);
 
-  // Handle socket events with stable dependencies
+  // Store handlers in ref to avoid closure mismatches
+  const handlersRef = useRef({});
+
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !roomId) return;
+    console.log(socket,'socket changed')
 
     const handlers = {
       connect: handleConnect,
@@ -90,30 +110,55 @@ export function useGameSync(roomId: string) {
       propertyAvailable: handlePropertyAvailable,
       propertyBought: handlePropertyBought,
       turnChanged: handleTurnChanged,
+      playerJoined: handlePlayerJoined,
+      waitingStatus: handleWaitingStatus,
       error: handleError,
     };
 
-    // Register all event handlers
+    handlersRef.current = handlers;
+
+    // Register handlers
     Object.entries(handlers).forEach(([event, handler]) => {
+      console.log(`[GameSync] Registering socket listener: ${event}`);
       socket.on(event, handler);
     });
 
-    // Initial connection handling
-    if (socket.connected && roomId) {
-      handleConnect();
+    if (socket.connected) {
+      handleConnect(); // Immediate connection trigger
     }
 
-    // Cleanup
+    // Fallback fetch to cover missed events
+    const fallback = setTimeout(() => {
+      console.warn("[GameSync] Fallback state request triggered");
+      socket.emit("requestGameState", { roomId });
+    }, 1500);
+
     return () => {
+      clearTimeout(fallback);
       Object.entries(handlers).forEach(([event, handler]) => {
         socket.off(event, handler);
+        console.log(`[GameSync] Removed socket listener: ${event}`);
       });
     };
-  }, [socket, roomId, handleConnect]); // Only depend on stable values
+  }, [
+    socket,
+    roomId,
+    handleConnect,
+    handleDisconnect,
+    handleGameStateUpdate,
+    handleDiceRolled,
+    handlePropertyAvailable,
+    handlePropertyBought,
+    handleTurnChanged,
+    handlePlayerJoined,
+    handleWaitingStatus,
+    handleError
+  ]);
 
   return {
     isConnected,
-    error: useGameStore.getState().error,
-    gameState: useGameStore.getState().gameState,
+    error: useGameStore(state => state.error),
+    gameState: useGameStore(state => state.gameState),
+    refreshGameState,
   };
-} 
+}

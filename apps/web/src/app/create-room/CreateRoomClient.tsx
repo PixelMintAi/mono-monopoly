@@ -15,7 +15,7 @@ export function CreateRoomClient({ username }: CreateRoomClientProps) {
   const { socket, createRoom } = useGameStore();
   const [localRoomId, setLocalRoomId] = useState<string>('');
   const { isConnected, error, gameState } = useGameSync(localRoomId);
-  console.log(gameState, "gameState");
+
   // Create room when component mounts
   useEffect(() => {
     if (!socket || !username || localRoomId) return;
@@ -25,7 +25,9 @@ export function CreateRoomClient({ username }: CreateRoomClientProps) {
         const settings = {
           map: 'Classic' as const,
           maxPlayers: 4,
-          startingAmount: 1500
+          startingAmount: 1500,
+          cryptoPoolActivated:false,
+          poolAmountToEnter:0.001
         };
         const roomId = await createRoom(settings, username);
         setLocalRoomId(roomId);
@@ -90,7 +92,7 @@ export function CreateRoomClient({ username }: CreateRoomClientProps) {
           </div>
         )}
 
-        <GameBoard roomId={gameState.roomId} />
+        <GameBoard roomId={gameState?.roomId} />
       </div>
     </div>
   );

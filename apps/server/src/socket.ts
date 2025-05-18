@@ -37,6 +37,7 @@ function broadcastGameState(io: Server, room: Room) {
 // ─── Main Socket Setup ─────────────────────────────────────────────────────────
 
 export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
+  console.log(rooms,'rooms')
   io.on('connection', (socket: Socket) => {
     console.log('Client connected:', socket.id);
 
@@ -50,6 +51,7 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
       }
       socket.emit('gameStateUpdated', {
         roomId: room.id,
+        settings:room.settings,
         players: room.players,
         currentPlayerIndex: room.currentPlayerIndex,
         gameStarted: room.gameStarted,
@@ -74,19 +76,20 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
     // ─── Room Lifecycle ──────────────────────────────────────────────
 
     // Create a new room
-    socket.on('createRoom', ({ roomId, settings, username }: SocketEvents['createRoom']) => {
+    socket.on('createRoom', ({ roomId, settings, username,playerUUID }: SocketEvents['createRoom']) => {
       if (rooms.has(roomId)) {
         return socket.emit('error', 'Room already exists');
       }
       // initialize board
       const boardSpaces: Space[] = BOARD_SPACES.map(space => ({ ...space, ownedBy: null }));
-
       const room: Room = {
         id: roomId,
         settings,
         players: [{
           id: socket.id,
+          uuid:playerUUID,
           name: username,
+          isLeader:true,
           color: '#FF0000',
           position: 0,
           money: settings.startingAmount,
@@ -95,6 +98,7 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
           jailTurns: 0,
           cards: [],
           hasRolled: false,
+          bankRupt:false
         }],
         gameStarted: false,
         currentPlayerIndex: 0,
@@ -116,11 +120,11 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
         maxPlayers: settings.maxPlayers,
       });
       broadcastGameState(io, room);
-      console.log(`Room ${roomId} created by ${username}`);
+      console.log(`Room ${roomId} created by ${username} ${rooms}`);
     });
 
     // Join an existing room
-    socket.on('joinRoom', ({ roomId, username }: SocketEvents['joinRoom']) => {
+    socket.on('joinRoom', ({ roomId, username,playerUUID }: SocketEvents['joinRoom']) => {
       const room = rooms.get(roomId);
       if (!room) {
         return socket.emit('error', 'Room not found');
@@ -135,6 +139,8 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
       const player: Player = {
         id: socket.id,
         name: username,
+        uuid:playerUUID,
+        isLeader:false,
         color: '#0000FF',
         position: 0,
         money: room.settings.startingAmount,
@@ -143,6 +149,7 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
         jailTurns: 0,
         cards: [],
         hasRolled: false,
+        bankRupt:false
       };
       room.players.push(player);
       socket.join(roomId);
@@ -155,6 +162,23 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
         currentPlayers: room.players.length,
         maxPlayers: room.settings.maxPlayers,
       });
+      io.to(roomId).emit('playerJoined', {
+        playerId: socket.id,
+        playerName: player.name,
+        playerCount: room.players.length,
+        maxPlayers: room.settings.maxPlayers
+      });
+      console.log("Emitting gameStateUpdated to room", roomId);
+      io.to(roomId).emit("gameStateUpdated",{
+        roomId: room.id,
+        settings:room.settings,
+        players: room.players,
+        currentPlayerIndex: room.currentPlayerIndex,
+        gameStarted: room.gameStarted,
+        lastDiceRoll: room.lastDiceRoll,
+        boardSpaces: room.boardSpaces,
+      });
+      
       // Notify everyone of updated waiting status & state
       io.to(roomId).emit('waitingStatus', {
         roomId,
@@ -170,7 +194,9 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
     socket.on('startGame', ({ roomId }: SocketEvents['startGame']) => {
       const room = rooms.get(roomId);
       if (!room) return socket.emit('error', 'Room not found');
+      console.log('found')
       if (room.players.length < 2) return socket.emit('error', 'Need at least 2 players to start');
+      console.log('work')
       if (!validateRoomState(room)) {
         return broadcastError(io, roomId, 'Invalid room state');
       }
@@ -286,18 +312,49 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
       console.log(`Turn ended, next: ${room.players[room.currentPlayerIndex].name}`);
     });
 
+    // Update room settings
+    socket.on('updateSettings', ({ roomId, settings }: SocketEvents['updateSettings']) => {
+      const room = rooms.get(roomId);
+      if (!room) return socket.emit('error', 'Room not found');
+
+      const newSettings=settings
+
+      // Validate new settings (optional: add more checks if needed)
+      if (newSettings.maxPlayers < 2 || newSettings.maxPlayers > 8) {
+        return socket.emit('error', 'maxPlayers must be between 2 and 8');
+      }
+      if (newSettings.startingAmount < 0) {
+        return socket.emit('error', 'startingAmount must be positive');
+      }
+      if (typeof newSettings.poolAmountToEnter !== 'number' || newSettings.poolAmountToEnter < 0) {
+        return socket.emit('error', 'Invalid pool amount');
+      }
+
+      // Apply new settings
+      room.settings = {
+        ...room.settings,
+        ...newSettings,
+      };
+
+      // Notify all players in the room
+      io.to(roomId).emit('settingsUpdated', {
+        roomId,
+        settings: room.settings,
+      });
+    });
+
+
     // ─── Cleanup ──────────────────────────────────────────────────────
 
     socket.on('disconnect', () => {
       console.log('Client disconnected:', socket.id);
-
       rooms.forEach((room, roomId) => {
         const idx = room.players.findIndex(p => p.id === socket.id);
+        console.log(idx,room.players.length,'index')
         if (idx === -1) return;
 
-        room.players.splice(idx, 1);
+        // room.players.splice(idx, 1);
 
-        // If empty, delete the room
         if (room.players.length === 0) {
           rooms.delete(roomId);
           console.log(`Room ${roomId} deleted (empty)`);

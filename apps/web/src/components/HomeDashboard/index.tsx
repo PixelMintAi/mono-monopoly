@@ -9,6 +9,9 @@ import { IoMdArrowRoundBack } from "react-icons/io";
 import { IoReloadSharp } from "react-icons/io5";
 import { FaPlus } from "react-icons/fa6";
 import { room } from "@/interfaces/interface";
+import { useGameStore } from "@/store/gameStore";
+import { useGameSync } from "@/hooks/useGameSync";
+import { getOrCreatePlayerUUID } from "@/utils/initPlayerId";
 
 const HomeDashboard = () => {
   const router = useRouter();
@@ -51,6 +54,29 @@ const HomeDashboard = () => {
         activePlayers:3
     }
   ])
+  const [localRoomId, setLocalRoomId] = useState<string>('');
+  const { socket, createRoom } = useGameStore();
+      const initializeRoom = async () => {
+      try {
+        const playerUUID = getOrCreatePlayerUUID();
+        if(playerUUID){
+          localStorage.setItem('playerUUID', playerUUID);
+        }
+        const settings = {
+          map: 'Classic' as const,
+          maxPlayers: 4,
+          startingAmount: 1500,
+          cryptoPoolActivated:false,
+          poolAmountToEnter:0.001
+        };
+        const roomId = await createRoom(settings, username,playerUUID);
+        router.push(`/room/${roomId}`)
+        setLocalRoomId(roomId);
+      } catch (error) {
+        console.error('Failed to create room:', error);
+      }
+    };
+      const { isConnected, error, gameState } = useGameSync(localRoomId);
 
   useEffect(()=>{
     if(username!==""){
@@ -141,7 +167,8 @@ const HomeDashboard = () => {
         <Button
           className="cursor-pointer"
           onClick={() => {
-            router.push(`room/${generateRandomCombo()}`);
+            initializeRoom()
+            // router.push(`create-room/${generateRandomCombo()}`);
           }}
         >
           <IoGameControllerOutline />

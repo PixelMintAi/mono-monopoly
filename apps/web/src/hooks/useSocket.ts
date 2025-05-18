@@ -6,9 +6,12 @@ interface UseSocketReturn {
   socket: Socket | null;
   isConnected: boolean;
   error: string | null;
-  createRoom: (settings: GameSettings, username: string) => Promise<string>;
-  joinRoom: (roomId: string, username: string) => Promise<void>;
+  clearError: () => void;
+  createRoom: (settings: GameSettings, username: string, playerUUID: string) => Promise<string>;
+  joinRoom: (roomId: string, username: string, playerUUID: string) => Promise<void>;
   startGame: (roomId: string) => Promise<void>;
+  reconnect: () => void;
+  disconnect: () => void;
 }
 
 export function useSocket(): UseSocketReturn {
@@ -18,140 +21,248 @@ export function useSocket(): UseSocketReturn {
   const [retryCount, setRetryCount] = useState(0);
   const maxRetries = 3;
 
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+  // Function to initialize socket connection
+  const socketInitializer = async () => {
+    try {
+      if (socketRef.current && socketRef.current.connected) {
+        console.log('Socket already connected, skipping initialization');
+        return;
+      }
 
-    const socketInitializer = async () => {
-      try {
-        console.log('Initializing socket connection...');
-        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
-        console.log('Socket URL:', socketUrl);
-        
-        const socket = io(socketUrl, {
-          transports: ['websocket', 'polling'],
-          reconnectionAttempts: 5,
-          reconnectionDelay: 1000,
-          timeout: 20000,
-          autoConnect: true,
-          withCredentials: true,
-        });
+      console.log('Initializing socket connection...');
+      const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+      console.log('Socket URL:', socketUrl);
+      
+      const socket = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        timeout: 20000,
+        autoConnect: true,
+        withCredentials: true,
+      });
 
-        socketRef.current = socket;
+      socketRef.current = socket;
 
-        socket.on('connect', () => {
-          console.log('Socket connected successfully');
-          setIsConnected(true);
-          setError(null);
-          setRetryCount(0);
-        });
+      // Set up event listeners
+      socket.on('connect', () => {
+        console.log('Socket connected successfully with ID:', socket.id);
+        setIsConnected(true);
+        setError(null);
+        setRetryCount(0);
+      });
 
-        socket.on('connect_error', (error) => {
-          console.error('Socket connection error:', error);
-          setError('Failed to connect to server');
-          if (retryCount < maxRetries) {
-            console.log(`Retrying connection (${retryCount + 1}/${maxRetries})...`);
-            setRetryCount(prev => prev + 1);
-            timeoutId = setTimeout(socketInitializer, 2000);
-          } else {
-            console.error('Max retry attempts reached');
-          }
-        });
-
-        socket.on('error', (errorMessage: string) => {
-          console.error('Socket error:', errorMessage);
-          setError(errorMessage);
-        });
-
-        socket.on('disconnect', (reason) => {
-          console.log('Socket disconnected:', reason);
-          setIsConnected(false);
-          if (reason === 'io server disconnect') {
-            console.log('Server initiated disconnect, attempting to reconnect...');
-            socket.connect();
-          }
-        });
-
-        return () => {
-          console.log('Cleaning up socket connection...');
-          if (timeoutId) clearTimeout(timeoutId);
-          socket.disconnect();
-        };
-      } catch (error) {
-        console.error('Failed to initialize socket:', error);
-        setError('Failed to initialize socket connection');
+      socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        setError(`Connection error: ${error.message}`);
         if (retryCount < maxRetries) {
-          console.log(`Retrying initialization (${retryCount + 1}/${maxRetries})...`);
+          console.log(`Retrying connection (${retryCount + 1}/${maxRetries})...`);
           setRetryCount(prev => prev + 1);
-          timeoutId = setTimeout(socketInitializer, 2000);
         } else {
           console.error('Max retry attempts reached');
         }
-      }
-    };
+      });
 
+      socket.on('error', (errorMessage: string) => {
+        console.error('Socket error:', errorMessage);
+        setError(errorMessage);
+        
+        // Auto-clear non-critical errors after 5 seconds
+        setTimeout(() => {
+          setError(prev => prev === errorMessage ? null : prev);
+        }, 5000);
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('Socket disconnected:', reason);
+        setIsConnected(false);
+        
+        if (reason === 'io server disconnect') {
+          console.log('Server initiated disconnect, attempting to reconnect...');
+          socket.connect();
+        }
+      });
+
+      socket.on('reconnect', (attemptNumber) => {
+        console.log(`Socket reconnected after ${attemptNumber} attempts`);
+        setIsConnected(true);
+        setError(null);
+      });
+
+      socket.on('reconnect_error', (error) => {
+        console.error('Socket reconnection error:', error);
+        setError(`Reconnection error: ${error.message}`);
+      });
+
+      socket.on('reconnect_failed', () => {
+        console.error('Socket reconnection failed');
+        setError('Failed to reconnect after multiple attempts. Please refresh the page.');
+      });
+
+      // Enhanced debugging events
+      socket.on('playerJoined', (data) => {
+        console.log('Player joined event received:', data);
+      });
+
+      socket.io.on('reconnect_attempt', () => {
+        console.log('Socket attempting to reconnect...');
+      });
+
+    } catch (error) {
+      console.error('Failed to initialize socket:', error);
+      setError(`Socket initialization error: ${error instanceof Error ? error.message : String(error)}`);
+      
+      if (retryCount < maxRetries) {
+        console.log(`Retrying initialization (${retryCount + 1}/${maxRetries})...`);
+        setRetryCount(prev => prev + 1);
+        setTimeout(socketInitializer, 2000);
+      } else {
+        console.error('Max retry attempts reached');
+      }
+    }
+  };
+
+  // Initialize socket on component mount
+  useEffect(() => {
     socketInitializer();
 
     return () => {
       console.log('Cleaning up socket hook...');
-      if (timeoutId) clearTimeout(timeoutId);
       if (socketRef.current) {
         socketRef.current.disconnect();
+        socketRef.current.removeAllListeners();
+        socketRef.current = null;
       }
     };
   }, [retryCount]);
 
-  const createRoom = async (settings: GameSettings, username: string): Promise<string> => {
+  // Helper to clear error state
+  const clearError = () => setError(null);
+
+  // Function to manually reconnect
+  const reconnect = () => {
+    if (socketRef.current) {
+      if (!socketRef.current.connected) {
+        console.log('Manually reconnecting socket...');
+        socketRef.current.connect();
+      } else {
+        console.log('Socket already connected, no need to reconnect');
+      }
+    } else {
+      console.log('No socket instance, initializing new connection');
+      socketInitializer();
+    }
+  };
+
+  // Function to manually disconnect
+  const disconnect = () => {
+    if (socketRef.current && socketRef.current.connected) {
+      console.log('Manually disconnecting socket...');
+      socketRef.current.disconnect();
+    }
+  };
+
+  // Create a new game room
+  const createRoom = async (settings: GameSettings, username: string, playerUUID: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       if (!socketRef.current) {
         reject(new Error('Socket not connected'));
         return;
       }
 
+      // Generate a random room ID
       const roomId = crypto.randomUUID();
       
-      socketRef.current.emit('createRoom', { roomId, settings, username });
-
-      const timeoutId = setTimeout(() => {
-        reject(new Error('Room creation timed out'));
-      }, 5000);
-
-      socketRef.current.once('roomCreated', ({ roomId }) => {
-        clearTimeout(timeoutId);
+      // Set up one-time event listeners first
+      const onRoomCreated = ({ roomId }: { roomId: string }) => {
+        console.log('Room created successfully:', roomId);
+        cleanup();
         resolve(roomId);
-      });
+      };
 
-      socketRef.current.once('error', (errorMessage: string) => {
-        clearTimeout(timeoutId);
+      const onError = (errorMessage: string) => {
+        console.error('Room creation error:', errorMessage);
+        cleanup();
         reject(new Error(errorMessage));
-      });
+      };
+
+      const onTimeout = () => {
+        console.error('Room creation timed out');
+        cleanup();
+        reject(new Error('Room creation timed out after 5 seconds'));
+      };
+
+      // Create cleanup function for event listeners
+      const cleanup = () => {
+        clearTimeout(timeoutId);
+        socketRef.current?.off('roomCreated', onRoomCreated);
+        socketRef.current?.off('error', onError);
+      };
+
+      // Set timeout for operation
+      const timeoutId = setTimeout(onTimeout, 5000);
+
+      // Register event listeners
+      socketRef.current.once('roomCreated', onRoomCreated);
+      socketRef.current.once('error', onError);
+
+      // Emit create room event
+      socketRef.current.emit('createRoom', { roomId, settings, username, playerUUID });
+      console.log('createRoom emitted:', { roomId, username, playerUUID });
     });
   };
 
-  const joinRoom = async (roomId: string, username: string): Promise<void> => {
+  // Join an existing game room
+  const joinRoom = async (roomId: string, username: string, playerUUID: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       if (!socketRef.current) {
         reject(new Error('Socket not connected'));
         return;
       }
+      console.log('entry join room')
 
-      socketRef.current.emit('joinRoom', { roomId, username });
-
-      const timeoutId = setTimeout(() => {
-        reject(new Error('Join room timed out'));
-      }, 5000);
-
-      socketRef.current.once('gameStateUpdated', () => {
-        clearTimeout(timeoutId);
+      // Set up one-time event listeners first
+      const onJoinSuccess = () => {
+        console.log('Successfully joined room:', roomId);
+        cleanup();
         resolve();
-      });
+      };
 
-      socketRef.current.once('error', (errorMessage: string) => {
-        clearTimeout(timeoutId);
+      const onError = (errorMessage: string) => {
+        console.error('Join room error:', errorMessage);
+        cleanup();
         reject(new Error(errorMessage));
-      });
+      };
+
+      const onTimeout = () => {
+        console.error('Join room timed out');
+        cleanup();
+        reject(new Error('Join room timed out after 5 seconds'));
+      };
+
+      // Create cleanup function
+      const cleanup = () => {
+        clearTimeout(timeoutId);
+        socketRef.current?.off('joinConfirmed', onJoinSuccess);
+        socketRef.current?.off('gameStateUpdated', onJoinSuccess);  // Either event confirms success
+        socketRef.current?.off('error', onError);
+      };
+
+      // Set timeout
+      const timeoutId = setTimeout(onTimeout, 5000);
+
+      // Register event listeners - accept either joinConfirmed or gameStateUpdated as success
+      socketRef.current.once('joinConfirmed', onJoinSuccess);
+      socketRef.current.once('gameStateUpdated', onJoinSuccess);
+      socketRef.current.once('error', onError);
+
+      // Emit join room event
+      socketRef.current.emit('joinRoom', { roomId, username, playerUUID });
+      console.log('joinRoom emitted:', { roomId, username, playerUUID });
     });
   };
 
+  // Start a game
   const startGame = async (roomId: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       if (!socketRef.current) {
@@ -159,30 +270,56 @@ export function useSocket(): UseSocketReturn {
         return;
       }
 
-      socketRef.current.emit('startGame', { roomId });
-
-      const timeoutId = setTimeout(() => {
-        reject(new Error('Start game timed out'));
-      }, 5000);
-
-      socketRef.current.once('gameStarted', () => {
-        clearTimeout(timeoutId);
+      // Set up one-time event listeners
+      const onGameStarted = () => {
+        console.log('Game started successfully');
+        cleanup();
         resolve();
-      });
+      };
 
-      socketRef.current.once('error', (errorMessage: string) => {
-        clearTimeout(timeoutId);
+      const onError = (errorMessage: string) => {
+        console.error('Start game error:', errorMessage);
+        cleanup();
         reject(new Error(errorMessage));
-      });
+      };
+
+      const onTimeout = () => {
+        console.error('Start game timed out');
+        cleanup();
+        reject(new Error('Start game timed out after 5 seconds'));
+      };
+
+      // Create cleanup function
+      const cleanup = () => {
+        clearTimeout(timeoutId);
+        socketRef.current?.off('gameStarted', onGameStarted);
+        socketRef.current?.off('error', onError);
+      };
+
+      // Set timeout
+      const timeoutId = setTimeout(onTimeout, 5000);
+
+      // Register event listeners
+      socketRef.current.once('gameStarted', onGameStarted);
+      socketRef.current.once('error', onError);
+
+      // Emit start game event
+      socketRef.current.emit('startGame', { roomId });
+      console.log('startGame emitted:', { roomId });
     });
   };
+
+  
 
   return {
     socket: socketRef.current,
     isConnected,
     error,
+    clearError,
     createRoom,
     joinRoom,
     startGame,
+    reconnect,
+    disconnect,
   };
-} 
+}
