@@ -313,9 +313,7 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
       if (!room) return socket.emit('error', 'Room not found');
 
       const current = room.players[room.currentPlayerIndex];
-      if (!current || current.id !== socket.id) {
-        return socket.emit('error', 'Not your turn');
-      }
+
 
       const property = room.boardSpaces.find(s => s.id === propertyId);
       if (!property || property.ownedBy !== null) {
@@ -328,9 +326,10 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
         return socket.emit('error', 'Not enough money to buy property');
       }
 
-      property.ownedBy = current;
-      current.money -= property.price;
-      current.properties.push(property);
+  // Assign ownership (store only player ID to avoid circular refs)
+  property.ownedBy = current.id;
+  current.money -= property.price;
+  current.properties.push(property); // Or just track by ID if needed
 
       io.to(roomId).emit('propertyBought', {
         playerId: current.id,
@@ -349,9 +348,10 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
       if (!current.hasRolled) {
         return socket.emit('error', 'You must roll before ending turn');
       }
+      const player = room.players[room.currentPlayerIndex];
 
       room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
-      room.players[room.currentPlayerIndex].hasRolled = false;
+      player.hasRolled = false;
       room.lastDiceRoll = null;
 
       io.to(roomId).emit('turnChanged', { nextPlayerIndex: room.currentPlayerIndex });

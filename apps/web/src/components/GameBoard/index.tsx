@@ -28,7 +28,8 @@ interface GameBoardProps {
   attemptJoinRoom:any,
   refreshGameState:any
   currentPlayer:Player | null,
-  startGame:any
+  startGame:any;
+  onBuyProperty:()=>void
 }
 
 const GameBoard = ({
@@ -42,8 +43,11 @@ const GameBoard = ({
   attemptJoinRoom,
   refreshGameState,
   currentPlayer,
-  startGame
+  startGame,
+  onBuyProperty
 }: GameBoardProps) => {
+  const indexMatch = players?.findIndex(item => item?.uuid === currentPlayer?.uuid);
+
   const [diceValues, setDiceValues] = useState<number[]>([1, 1]);
   const [gameMessage, setGameMessage] = useState<string>("");
   const [hasRolled, setHasRolled] = useState(false);
@@ -346,7 +350,7 @@ const GameBoard = ({
           {/* Action buttons */}
           {gameStarted && (
             <div className="flex space-x-4">
-              {!currentPlayer?.hasRolled&& (
+              {!currentPlayer?.hasRolled &&indexMatch===currentPlayerIndex&& (
                 <button
                   onClick={()=>{
                     onRollDice()
@@ -359,7 +363,7 @@ const GameBoard = ({
                   Roll Dice
                 </button>
               )}
-              {currentPlayer?.hasRolled && (
+              {currentPlayer?.hasRolled &&indexMatch===currentPlayerIndex&& (
                 <div className="flex gap-2">
                   <Button
                     onClick={()=>{
@@ -387,7 +391,9 @@ const GameBoard = ({
                       <Button
                         className="cursor-pointer"
                         onClick={() => {
-                          handleBuy();
+                          onBuyProperty()
+                          refreshGameState()
+                          // handleBuy();
                         }}
                       >
                         Buy for $

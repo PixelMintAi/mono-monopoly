@@ -143,7 +143,7 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
     );
   };
   const currentPlayerId = 1;
-
+ const indexMatch = players?.findIndex(item => item?.uuid === currentPlayer?.uuid);
   const handleBankrupt = () => {
     setPlayers((prevPlayers) =>
       prevPlayers.map((player) =>
@@ -232,6 +232,7 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
         refreshGameState={refreshGameState}
         currentPlayer={currentPlayer}
         startGame={startGame}
+        onBuyProperty={buyProperty}
       />
 
       <div className="w-1/3 overflow-y-auto max-h-full custom-scrollbar">
@@ -302,7 +303,7 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
           {gameStarted && (
             <UserProperties
               players={players}
-              currentPlayerIndex={currentPlayerIndex}
+              currentPlayerIndex={indexMatch}
             />
           )}
         </div>
