@@ -34,7 +34,7 @@ const spaceSchema = z.object({
 
 const gameSettingsSchema = z.object({
   map: z.literal('Classic'),
-  maxPlayers: z.number().min(2).max(4),
+  maxPlayers: z.number().min(2).max(8),
   startingAmount: z.number().min(1000),
   cryptoPoolActivated:z.boolean(),
   poolAmountToEnter:z.number()

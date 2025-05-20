@@ -53,7 +53,7 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
   const [username, setusername] = useState<string>("trial");
   const maxRetries = 3;
   useEffect(()=>{
-    console.log('trigger')
+    console.log(socket,'socket triggered')
   },[socket])
   // useEffect(() => {
   //   if (username !== "") {
@@ -91,9 +91,9 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
   };
 
     useEffect(()=>{
-    const playerId=localStorage.getItem('playerUUID')
+    const playerId=localStorage?.getItem('playerUUID')
     if(playerId){
-      const me = gameState?.players.find((p:any) => p?.uuid === playerid);
+      const me = gameState?.players.find((p:any) => p?.uuid === playerId);
       if(me){
         setcurrentPlayer(me)
       }
@@ -110,12 +110,12 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
       if (gameState) {
         setPlayers(gameState?.players);
         setgameStarted(gameState?.gameStarted)
+        setCurrentPlayerIndex(gameState?.currentPlayerIndex)
       }
     }
   }, [gameState,socket]);
+  console.log(gameState,'game')
 
-  let playerid = localStorage.getItem("playerUUID");
-  const me = gameState?.players.find((p) => p?.uuid === playerid);
   const { rollDice, endTurn, buyProperty, startGame, isRolling ,updateSettings} =
     useGameStore();
   const [spectatingUser, setspectatingUser] = useState<boolean>(false);
@@ -223,8 +223,8 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
       <GameBoard
         players={players}
         currentPlayerIndex={currentPlayerIndex}
-        onRollDice={handleRollDice}
-        onEndTurn={handleEndTurn}
+        onRollDice={rollDice}
+        onEndTurn={endTurn}
         gameStarted={gameStarted}
         setgameStarted={setgameStarted}
         setPlayers={setPlayers}

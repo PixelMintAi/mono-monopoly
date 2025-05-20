@@ -20,7 +20,7 @@ import { Player } from "@/types/game";
 interface GameBoardProps {
   players: Player[];
   currentPlayerIndex: number;
-  onRollDice: (roll: number[]) => void;
+  onRollDice: () => void;
   onEndTurn: () => void;
   gameStarted: boolean;
   setgameStarted: Dispatch<SetStateAction<boolean>>;
@@ -346,19 +346,26 @@ const GameBoard = ({
           {/* Action buttons */}
           {gameStarted && (
             <div className="flex space-x-4">
-              {!hasRolled && (
+              {!currentPlayer?.hasRolled&& (
                 <button
-                  onClick={handleRollDice}
+                  onClick={()=>{
+                    onRollDice()
+                    refreshGameState()
+
+                  }}
                   disabled={isRolling}
                   className="px-6 py-2 bg-green-600 text-white cursor-pointer rounded-lg hover:bg-green-700 disabled:opacity-50"
                 >
                   Roll Dice
                 </button>
               )}
-              {hasRolled && (
+              {currentPlayer?.hasRolled && (
                 <div className="flex gap-2">
                   <Button
-                    onClick={handleEndTurn}
+                    onClick={()=>{
+                      onEndTurn()
+                      refreshGameState()
+                    }}
                     className="px-6 py-2 cursor-pointer bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
                     End Turn

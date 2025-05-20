@@ -15,7 +15,7 @@ export default function RoomPage({ params, searchParams }: RoomPageProps) {
    const { id } = params;
   const [username, setusername] = useState<string>("");
   useEffect(()=>{
-    const initialName=localStorage.getItem('usernickname')
+    const initialName=localStorage?.getItem('usernickname')
     if(initialName){
         setusername(initialName)
     }

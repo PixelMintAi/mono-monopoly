@@ -41,6 +41,7 @@ const GameSettings = ({
   refreshGameState:any;
   gameState:GameState
 }) => {
+  
   const [startingCash, setstartingCash] = useState<string>("1500");
   const [privateRoom, setprivateRoom] = useState<boolean>(true);
   const settingsMenu = [
@@ -95,7 +96,7 @@ const GameSettings = ({
           </div>
           <div>
             <Select
-            disabled={!currentPlayer?.isLeader}
+            disabled={!currentPlayer?.isLeader ||gameState?.gameStarted}
               value={playersCount}
               onValueChange={(e) => {
                 setplayersCount(e);
@@ -128,7 +129,7 @@ const GameSettings = ({
             <Switch
               color="#fff"
               checked={privateRoom}
-              disabled={!currentPlayer?.isLeader}
+              disabled={!currentPlayer?.isLeader ||gameState?.gameStarted}
               onCheckedChange={(checked) => {
                 setprivateRoom(checked);
               }}
@@ -161,7 +162,7 @@ const GameSettings = ({
           <div>
             <Select
               value={startingCash}
-              disabled={!currentPlayer?.isLeader}
+              disabled={!currentPlayer?.isLeader ||gameState?.gameStarted}
               onValueChange={(e) => {
                 setstartingCash(e);
               }}
@@ -190,7 +191,7 @@ const GameSettings = ({
             <Switch
               color="#fff"
               checked={cryptoPoolActivated}
-              disabled={!currentPlayer?.isLeader}
+              disabled={!currentPlayer?.isLeader ||gameState?.gameStarted}
               onCheckedChange={(checked) => {
                 setcryptoPoolActivated(checked);
               }}
@@ -207,7 +208,7 @@ const GameSettings = ({
           <RiMoneyDollarCircleFill />
             Enter Pool Amount (ETH)
           </div>
-          <Input disabled={!currentPlayer?.isLeader} type="number" placeholder="Enter Amount in Eth" value={poolAmountEntered} onChange={(e)=>{
+          <Input disabled={!currentPlayer?.isLeader ||gameState?.gameStarted} type="number" placeholder="Enter Amount in Eth" value={poolAmountEntered} onChange={(e)=>{
             setpoolAmountEntered(Number(e.target.value))
           }} />
         </div>}

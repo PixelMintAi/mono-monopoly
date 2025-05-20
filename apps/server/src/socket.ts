@@ -217,45 +217,95 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
     // ─── Gameplay Actions ────────────────────────────────────────────
 
     // Roll the dice
-    socket.on('rollDice', ({ roomId }: SocketEvents['rollDice']) => {
-      const room = rooms.get(roomId);
-      if (!room) return socket.emit('error', 'Room not found');
+ socket.on('rollDice', ({ roomId }: SocketEvents['rollDice']) => {
+  const room = rooms.get(roomId);
+  if (!room) return socket.emit('error', 'Room not found');
 
-      const current = room.players[room.currentPlayerIndex];
-      if (!current || current.id !== socket.id) {
-        return socket.emit('error', 'Not your turn');
-      }
-      if (current.hasRolled) {
-        return socket.emit('error', 'You have already rolled this turn');
-      }
+  const player = room.players[room.currentPlayerIndex];
+  const boardLength = room.boardSpaces.length;
 
-      const dice1 = Math.floor(Math.random() * 6) + 1;
-      const dice2 = Math.floor(Math.random() * 6) + 1;
-      const total = dice1 + dice2;
+  if (player.hasRolled) {
+    return socket.emit('error', 'You have already rolled this turn');
+  }
 
-      current.hasRolled = true;
-      current.position = (current.position + total) % room.boardSpaces.length;
-      room.lastDiceRoll = { dice1, dice2, playerId: current.id };
+  const dice1 = Math.floor(Math.random() * 6) + 1;
+  const dice2 = Math.floor(Math.random() * 6) + 1;
+  const total = dice1 + dice2;
+  const isDouble = dice1 === dice2;
 
-      const space = room.boardSpaces[current.position];
-      if (['city', 'airport', 'utility'].includes(space.type)) {
-        if (space.ownedBy === null) {
-          io.to(roomId).emit('propertyAvailable', {
-            playerId: current.id,
-            propertyId: space.id,
-            price: space.price,
-          });
-        } else if (space.ownedBy.id !== current.id) {
-          const rent = space.rent ?? 0;
-          current.money -= rent;
-          space.ownedBy.money += rent;
-        }
-      }
+  const movePlayer = (steps: number) => (player.position + steps) % boardLength;
 
-      io.to(roomId).emit('diceRolled', room.lastDiceRoll);
+  // Jail Logic
+  if (player.inJail) {
+    if (isDouble || player.jailTurns >= 2) {
+      player.inJail = false;
+      player.jailTurns = 0;
+      player.position = movePlayer(total);
+      io.to(roomId).emit('gameMessage', `${player.name} rolled ${dice1}+${dice2} and got out of jail!`);
+    } else {
+      player.jailTurns += 1;
+      player.hasRolled = true;
+      io.to(roomId).emit('gameMessage', `${player.name} rolled ${dice1}+${dice2} but is still in jail (${player.jailTurns}/3 tries)`);
+      room.lastDiceRoll = { dice1, dice2, playerId: player.id };
       broadcastGameState(io, room);
-      console.log(`Player ${current.name} rolled ${dice1} & ${dice2}`);
-    });
+      return;
+    }
+  } else {
+    const passedStart = player.position + total >= boardLength;
+    player.position = movePlayer(total);
+    if (passedStart) player.money += 200;
+    if (player.position === 0) player.money += 300;
+  }
+
+  const currentSpace = room.boardSpaces[player.position];
+
+  // Handle Go To Jail
+  if (player.position === 30) {
+    player.position = 10;
+    player.inJail = true;
+    player.jailTurns = 0;
+    io.to(roomId).emit('gameMessage', `${player.name} landed on Go To Jail! Sent to jail at space 10.`);
+  }
+  // Surprise card
+  // Vacation space
+  else if (currentSpace.id === 'vacation') {
+    player.money += currentSpace.price;
+    io.to(roomId).emit('gameMessage', `${player.name} received $${currentSpace.price} for vacation!`);
+  }
+  // Tax space
+  else if (currentSpace.type === 'tax') {
+    player.money -= currentSpace.price;
+    room.boardSpaces[20].price += currentSpace.price;
+    io.to(roomId).emit('gameMessage', `${player.name} paid $${currentSpace.price} in taxes.`);
+  }
+  // Property logic
+  else if (['city', 'airport', 'utility'].includes(currentSpace.type)) {
+    if (currentSpace.ownedBy === null) {
+      io.to(roomId).emit('propertyAvailable', {
+        playerId: player.id,
+        propertyId: currentSpace.id,
+        price: currentSpace.price,
+      });
+    } else if (currentSpace.ownedBy.id !== player.id) {
+      const rent = currentSpace.rent ?? 0;
+      player.money -= rent;
+      currentSpace.ownedBy.money += rent;
+      io.to(roomId).emit('gameMessage', `${player.name} paid $${rent} in rent to ${currentSpace.ownedBy.name}`);
+    }
+  } else {
+    io.to(roomId).emit('gameMessage', `${player.name} rolled ${dice1}+${dice2}=${total} and moved to space ${player.position}`);
+  }
+
+  player.hasRolled = true;
+
+  room.lastDiceRoll = { dice1, dice2, playerId: player.id };
+
+  io.to(roomId).emit('diceRolled', room.lastDiceRoll);
+  broadcastGameState(io, room);
+
+  console.log(`Player ${player.name} rolled ${dice1} & ${dice2}`);
+});
+
 
     // Buy a property
     socket.on('buyProperty', ({ roomId, propertyId }: SocketEvents['buyProperty']) => {
@@ -296,9 +346,6 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
       if (!room) return socket.emit('error', 'Room not found');
 
       const current = room.players[room.currentPlayerIndex];
-      if (!current || current.id !== socket.id) {
-        return socket.emit('error', 'Not your turn');
-      }
       if (!current.hasRolled) {
         return socket.emit('error', 'You must roll before ending turn');
       }
