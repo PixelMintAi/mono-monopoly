@@ -1,4 +1,5 @@
-import { useRouter } from "next/router";
+
+'use client'
 import React, { useState } from "react";
 import { MdOutlineLocalGroceryStore, MdLogin } from "react-icons/md";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
@@ -8,6 +9,7 @@ import { RiTwitterXFill } from "react-icons/ri";
 import { FaDiscord } from "react-icons/fa";
 import { signIn, signOut, useSession } from "next-auth/react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const Navbar = () => {
   const router = useRouter();
@@ -16,7 +18,7 @@ const Navbar = () => {
   const { data: session } = useSession();
 
   return (
-    <div className="h-8 fixed p-6 flex justify-between w-full">
+    <div className="h-8 fixed p-6 flex justify-between w-full ">
       <div
         className="flex cursor-pointer"
         onClick={() => {

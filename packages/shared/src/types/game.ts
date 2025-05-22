@@ -3,27 +3,32 @@ import { z } from 'zod';
 export const SpaceSchema = z.object({
   id: z.string(),
   name: z.string(),
-  type: z.enum(['city', 'airport', 'utility', 'tax', 'chance', 'community', 'corner']),
+  type: z.enum(['city', 'airport', 'utility', 'tax', 'chance', 'community', 'corner','treasure','special','community','surprise']),
   price: z.number().optional(),
   rent: z.number().optional(),
   ownedBy: z.any().nullable(),
-  position: z.number()
+  country:z.string().optional(),
+  position: z.string(),
 });
 
 export type Space = z.infer<typeof SpaceSchema>;
 
 export const GameSettingsSchema = z.object({
-  map: z.enum(['Classic']),
+  map: z.literal('Classic'),
   maxPlayers: z.number().min(2).max(8),
-  startingAmount: z.number().min(1000).max(10000)
+  startingAmount: z.number().min(1000).max(10000),
+  cryptoPoolActivated: z.boolean(),
+  poolAmountToEnter: z.number().min(0)
 });
 
 export type GameSettings = z.infer<typeof GameSettingsSchema>;
 
 export const PlayerSchema = z.object({
   id: z.string(),
+  uuid:z.string(),
   name: z.string(),
   color: z.string(),
+  isLeader:z.boolean(),
   position: z.number(),
   money: z.number(),
   properties: z.array(SpaceSchema),
@@ -84,6 +89,7 @@ export type SocketEvents = {
   rollDice: { roomId: string };
   endTurn: { roomId: string };
   buyProperty: { roomId: string; propertyId: string };
+  updateSettings:{roomId:string; settings:GameSettings}
   
   // Error events
   error: string;
