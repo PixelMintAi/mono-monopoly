@@ -27,12 +27,16 @@ export interface GameSettings {
   map: 'Classic';
   maxPlayers: number;
   startingAmount: number;
+  cryptoPoolActivated: boolean;
+  poolAmountToEnter: number;
 }
 
 export interface GameState {
   players: Player[];
-  settings:GameSettings
+  settings: GameSettings;
   currentPlayerIndex: number;
   gameStarted: boolean;
   roomId: string;
+  boardSpaces: any[];
+  lastDiceRoll: { dice1: number; dice2: number; playerId: string } | null;
 } 

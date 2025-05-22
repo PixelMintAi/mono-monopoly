@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, Dispatch, SetStateAction } from "react";
 import GameBoard from "../GameBoard";
-
 import AllPlayersInfo from "../AllPlayersInfo";
 import GameSettings from "../GameSettings";
 import GamePlaySettings from "../GamePlaySettings";
@@ -22,44 +21,39 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useGameSync } from "@/hooks/useGameSync";
 import { useGameStore } from "@/store/gameStore";
-import { Player } from "@/types/game";
+import { Player, GameState } from "@/types/game";
 import { useSocket } from "@/hooks/useSocket";
 import { getOrCreatePlayerUUID } from "@/utils/initPlayerId";
 
 const RoomDashboard = ({ roomId }: { roomId: string }) => {
-  const [players, setPlayers] = useState<Player[]>([
-    {
-      id: "1",
-      name: "Player 1",
-      color: "#FF5733",
-      position: 0,
-      money: 1500,
-      properties: [],
-      inJail: false,
-      jailTurns: 0,
-      cards: [],
-      bankRupt: false,
-      uuid: "",
-      isLeader: false,
-      hasRolled: false
-    },
-  ]);
-  const [currentPlayer, setcurrentPlayer] = useState<Player |null>(null)
+  const router = useRouter();
+  const [currentPlayer, setcurrentPlayer] = useState<Player | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isJoined, setIsJoined] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const { socket, isConnected, error: socketError, joinRoom} = useSocket();
+  const { socket, isConnected, error: socketError, joinRoom } = useSocket();
   const [username, setusername] = useState<string>("trial");
+  const [spectatingUser, setspectatingUser] = useState<boolean>(false);
+  const [gameStarted, setgameStarted] = useState(false);
+  const { gameState, refreshGameState } = useGameSync(roomId);
+  const { rollDice, endTurn, buyProperty, startGame, isRolling, updateSettings } = useGameStore();
+
   const maxRetries = 3;
-  useEffect(()=>{
-    console.log(socket,'socket triggered')
-  },[socket])
-  // useEffect(() => {
-  //   if (username !== "") {
-  //     localStorage.setItem("usernickname", username);
-  //   }
-  // }, [username]);
+
+  useEffect(() => {
+    if (gameState) {
+      setgameStarted(gameState.gameStarted);
+      const playerId = localStorage?.getItem('playerUUID');
+      if (playerId) {
+        const me = gameState.players.find((p) => p?.uuid === playerId);
+        if (me) {
+          setcurrentPlayer(me);
+        }
+      }
+    }
+  }, [gameState]);
+
   const attemptJoinRoom = async () => {
     if (!socket || !isConnected || !username) {
       return;
@@ -68,7 +62,7 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
     try {
       setIsJoining(true);
       setError(null);
-      console.log(retryCount, "netry");
+      console.log(retryCount, "retry");
       const playerUUID = getOrCreatePlayerUUID();
       if (playerUUID) {
         localStorage.setItem("playerUUID", playerUUID);
@@ -90,70 +84,6 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
     }
   };
 
-    useEffect(()=>{
-    const playerId=localStorage?.getItem('playerUUID')
-    if(playerId){
-      const me = gameState?.players.find((p:any) => p?.uuid === playerId);
-      if(me){
-        setcurrentPlayer(me)
-      }
-    }
-  },[attemptJoinRoom])
-  const [playersCount, setplayersCount] = useState<string>("2");
-  const [currentPlayerIndex, setCurrentPlayerIndex] = useState<number>(0);
-  const [gameMessage, setGameMessage] = useState<string>(
-    "Game started! Roll the dice."
-  );
-  const { gameState, refreshGameState } = useGameSync(roomId);
-  useEffect(() => {
-    if (roomId && socket) {
-      if (gameState) {
-        setPlayers(gameState?.players);
-        setgameStarted(gameState?.gameStarted)
-        setCurrentPlayerIndex(gameState?.currentPlayerIndex)
-      }
-    }
-  }, [gameState,socket]);
-  console.log(gameState,'game')
-
-  const { rollDice, endTurn, buyProperty, startGame, isRolling ,updateSettings} =
-    useGameStore();
-  const [spectatingUser, setspectatingUser] = useState<boolean>(false);
-  const [gameStarted, setgameStarted] = useState(false);
-  // Handle dice roll
-  const handleRollDice = (roll: number[]) => {
-    const currentPlayer = players[currentPlayerIndex];
-    const diceSum = roll[0] + roll[1];
-
-    // Create a copy of the players array to modify
-    const updatedPlayers = [...players];
-
-    // Calculate new position (wrap around the board at 40 spaces)
-    const newPosition = (currentPlayer.position + diceSum) % 40;
-
-    // Update player position
-    updatedPlayers[currentPlayerIndex] = {
-      ...currentPlayer,
-      position: newPosition,
-    };
-
-    setPlayers(updatedPlayers);
-    setGameMessage(
-      `${currentPlayer.name} rolled ${roll[0]}+${roll[1]}=${diceSum} and moved to space ${newPosition}`
-    );
-  };
-  const currentPlayerId = 1;
- const indexMatch = players?.findIndex(item => item?.uuid === currentPlayer?.uuid);
-  const handleBankrupt = () => {
-    setPlayers((prevPlayers) =>
-      prevPlayers.map((player) =>
-        player.id === String(currentPlayerId)
-          ? { ...player, bankRupted: true, money: 0, properties: [] }
-          : player
-      )
-    );
-  };
-
   const [fullUrl, setFullUrl] = useState("");
 
   const handleCopy = () => {
@@ -168,29 +98,51 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
       });
   };
 
-  // Handle end turn
-  const handleEndTurn = () => {
-    let nextPlayerIndex = currentPlayerIndex;
-    const totalPlayers = players.length;
+  const handleBankrupt = () => {
+    if (!gameState) return;
+    const currentPlayerId = currentPlayer?.id;
+    if (!currentPlayerId) return;
 
-    // Loop to find the next non-bankrupted player
-    for (let i = 1; i <= totalPlayers; i++) {
-      const potentialIndex = (currentPlayerIndex + i) % totalPlayers;
-      if (!players[potentialIndex].bankRupt) {
-        nextPlayerIndex = potentialIndex;
-        break;
-      }
-    }
-
-    setCurrentPlayerIndex(nextPlayerIndex);
-    setGameMessage(`${players[nextPlayerIndex].name}'s turn`);
+    socket?.emit('playerBankrupt', { 
+      roomId: gameState.roomId,
+      playerId: currentPlayerId
+    });
   };
-  const router = useRouter();
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       setFullUrl(window.location.origin + `/room/${roomId}`);
     }
   }, []);
+
+  const indexMatch = gameState?.players?.findIndex(item => item?.uuid === currentPlayer?.uuid) ?? -1;
+
+  const setPlayers: Dispatch<SetStateAction<Player[]>> = useCallback((newPlayers) => {
+    if (typeof newPlayers === 'function') {
+      const updatedPlayers = newPlayers(gameState?.players ?? []);
+      socket?.emit('updatePlayers', { roomId, players: updatedPlayers });
+    } else {
+      socket?.emit('updatePlayers', { roomId, players: newPlayers });
+    }
+  }, [socket, roomId, gameState?.players]);
+
+  // Add a default game state for when gameState is null
+  const defaultGameState: GameState = {
+    roomId,
+    players: [],
+    settings: {
+      map: 'Classic',
+      maxPlayers: 4,
+      startingAmount: 1500,
+      cryptoPoolActivated: false,
+      poolAmountToEnter: 0.001
+    },
+    currentPlayerIndex: 0,
+    gameStarted: false,
+    boardSpaces: [],
+    lastDiceRoll: null
+  };
+
   return (
     <div className="pt-[5rem] w-full flex p-6 h-[calc(100vh)]">
       <div className="w-1/3 flex flex-col">
@@ -202,13 +154,7 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
             <div className="p-2 border rounded">{fullUrl}</div>
             <div className="flex p-2 gap-[0.4rem] border rounded cursor-pointer items-center">
               <FiCopy />
-              <text
-                onClick={() => {
-                  handleCopy();
-                }}
-              >
-                Copy
-              </text>
+              <text onClick={handleCopy}>Copy</text>
             </div>
           </div>
         </div>
@@ -221,8 +167,8 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
       </div>
 
       <GameBoard
-        players={players}
-        currentPlayerIndex={currentPlayerIndex}
+        players={gameState?.players ?? []}
+        currentPlayerIndex={gameState?.currentPlayerIndex ?? 0}
         onRollDice={rollDice}
         onEndTurn={endTurn}
         gameStarted={gameStarted}
@@ -237,18 +183,20 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
 
       <div className="w-1/3 overflow-y-auto max-h-full custom-scrollbar">
         <div className="p-2">
-          <AllPlayersInfo
-            players={players}
-            leader={"4"}
-            gameStarted={gameStarted}
-          />
-          {!gameStarted && (
+          {gameState && (
+            <AllPlayersInfo
+              players={gameState.players}
+              leader={"4"}
+              gameStarted={gameStarted}
+            />
+          )}
+          {!gameStarted && gameState && (
             <GameSettings
               leader={"4"}
-              players={players}
+              players={gameState.players}
               setPlayers={setPlayers}
-              playersCount={playersCount}
-              setplayersCount={setplayersCount}
+              playersCount={String(gameState.settings.maxPlayers)}
+              setplayersCount={() => {}}
               currentPlayer={currentPlayer}
               updateSettings={updateSettings}
               refreshGameState={refreshGameState}
@@ -282,9 +230,7 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
                     </AlertDialogCancel>
                     <AlertDialogAction
                       className="cursor-pointer bg-red-500 hover:bg-red-600"
-                      onClick={() => {
-                        handleBankrupt();
-                      }}
+                      onClick={handleBankrupt}
                     >
                       Confirm
                     </AlertDialogAction>
@@ -295,20 +241,20 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
           )}
           {gameStarted && (
             <TradeDashboard
-              players={players}
+              players={gameState?.players ?? []}
               selfUserId={"2"}
               setPlayers={setPlayers}
             />
           )}
           {gameStarted && (
             <UserProperties
-              players={players}
+              players={gameState?.players ?? []}
               currentPlayerIndex={indexMatch}
             />
           )}
         </div>
       </div>
-      {players.length == gameState?.settings?.maxPlayers && !currentPlayer && (
+      {gameState?.players.length === gameState?.settings?.maxPlayers && !currentPlayer && (
         <div className="fixed inset-0 bg-[rgba(133, 133, 133, 0.6)] bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-500">
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center w-[90%] max-w-md">
             <h2 className="text-2xl font-bold mb-4 text-gray-800">

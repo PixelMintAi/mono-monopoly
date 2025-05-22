@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Select,
   SelectContent,
@@ -18,7 +18,10 @@ import { FaEthereum } from "react-icons/fa";
 import { RiMoneyDollarCircleFill } from "react-icons/ri";
 import { Input } from "../ui/input";
 import { Player } from "@/types/game";
+import type { GameSettings } from "@/types/game";
 import { GameState } from "@/store/gameStore";
+import { useGameStore } from "@/store/gameStore";
+import { useDebounce } from "@/hooks/useDebounce";
 
 const GameSettings = ({
   leader,
@@ -60,27 +63,40 @@ const GameSettings = ({
   const [cryptoPoolActivated, setcryptoPoolActivated] =
     useState<boolean>(true);
 
-    useEffect(()=>{
-      if(gameState){
-        console.log('entry gamestate')
-        setstartingCash(String(gameState?.settings?.startingAmount))
-        setplayersCount(String(gameState?.settings?.maxPlayers))
-        setcryptoPoolActivated(gameState?.settings?.cryptoPoolActivated)
-        setpoolAmountEntered(gameState?.settings?.poolAmountToEnter)
-      }
-    },[gameState])
+  // Subscribe to specific parts of the game state
+  const gameSettings = useGameStore(state => state.gameState?.settings);
 
-  useEffect(()=>{
-    console.log('started effect')
-    updateSettings({
-      map:"Classic",
-      maxPlayers:Number(playersCount),
-      startingAmount:Number(startingCash),
-      cryptoPoolActivated:cryptoPoolActivated,
-      poolAmountToEnter:poolAmountEntered
-    })
-    refreshGameState()
-  },[startingCash,privateRoom,cryptoPoolActivated,poolAmountEntered,playersCount])
+  // Update local state when game settings change
+  useEffect(() => {
+    if (gameSettings) {
+      setstartingCash(String(gameSettings.startingAmount));
+      setplayersCount(String(gameSettings.maxPlayers));
+      setcryptoPoolActivated(gameSettings.cryptoPoolActivated);
+      setpoolAmountEntered(gameSettings.poolAmountToEnter);
+    }
+  }, [gameSettings, setplayersCount]);
+
+  // Replace lodash debounce with our custom hook
+  const debouncedUpdateSettings = useDebounce((settings: GameSettings) => {
+    updateSettings(settings);
+    refreshGameState();
+  }, 500);
+
+  // Update settings when local state changes
+  useEffect(() => {
+    const newSettings: GameSettings = {
+      map: "Classic",
+      maxPlayers: Number(playersCount),
+      startingAmount: Number(startingCash),
+      cryptoPoolActivated,
+      poolAmountToEnter: poolAmountEntered
+    };
+
+    // Only update if we have a complete settings object
+    if (currentPlayer?.isLeader && !gameState?.gameStarted) {
+      debouncedUpdateSettings(newSettings);
+    }
+  }, [startingCash, privateRoom, cryptoPoolActivated, poolAmountEntered, playersCount, debouncedUpdateSettings, currentPlayer?.isLeader, gameState?.gameStarted]);
 
   return (
     <div className="flex flex-col ml-6 mr-4 p-2 bg-fuchsia-950 rounded">

@@ -14,11 +14,11 @@ export const SpaceSchema = z.object({
 export type Space = z.infer<typeof SpaceSchema>;
 
 export const GameSettingsSchema = z.object({
-  map: z.enum(['Classic']),
+  map: z.literal('Classic'),
   maxPlayers: z.number().min(2).max(8),
   startingAmount: z.number().min(1000).max(10000),
-  cryptoPoolActivated:z.boolean(),
-  poolAmountToEnter:z.number()
+  cryptoPoolActivated: z.boolean(),
+  poolAmountToEnter: z.number().min(0)
 });
 
 export type GameSettings = z.infer<typeof GameSettingsSchema>;
