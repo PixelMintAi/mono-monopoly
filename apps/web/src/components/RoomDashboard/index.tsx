@@ -27,62 +27,121 @@ import { getOrCreatePlayerUUID } from "@/utils/initPlayerId";
 
 const RoomDashboard = ({ roomId }: { roomId: string }) => {
   const router = useRouter();
-  const [currentPlayer, setcurrentPlayer] = useState<Player | null>(null);
+  const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isJoined, setIsJoined] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const { socket, isConnected, error: socketError, joinRoom } = useSocket();
-  const [username, setusername] = useState<string>("trial");
-  const [spectatingUser, setspectatingUser] = useState<boolean>(false);
-  const [gameStarted, setgameStarted] = useState(false);
+  const [username, setUsername] = useState<string>("");
+  const [spectatingUser, setSpectatingUser] = useState<boolean>(false);
+  const [gameStarted, setGameStarted] = useState(false);
   const { gameState, refreshGameState } = useGameSync(roomId);
   const { rollDice, endTurn, buyProperty, startGame, isRolling, updateSettings } = useGameStore();
-
   const maxRetries = 3;
 
+  // Initialize username from localStorage
+  useEffect(() => {
+    const storedUsername = localStorage.getItem('usernickname');
+    if (storedUsername) {
+      setUsername(storedUsername);
+    }
+  }, []);
+
+  // Handle game state updates
   useEffect(() => {
     if (gameState) {
-      setgameStarted(gameState.gameStarted);
-      const playerId = localStorage?.getItem('playerUUID');
+      setGameStarted(gameState.gameStarted);
+      const playerId = localStorage.getItem('playerUUID');
       if (playerId) {
         const me = gameState.players.find((p) => p?.uuid === playerId);
         if (me) {
-          setcurrentPlayer(me);
+          setCurrentPlayer(me);
+          setIsJoined(true);
         }
       }
     }
   }, [gameState]);
 
-  const attemptJoinRoom = async () => {
-    if (!socket || !isConnected || !username) {
+  // Handle room joining
+  useEffect(() => {
+    if (!socket || !isConnected || !username || isJoining || isJoined) {
       return;
     }
 
-    try {
-      setIsJoining(true);
-      setError(null);
-      console.log(retryCount, "retry");
-      const playerUUID = getOrCreatePlayerUUID();
-      if (playerUUID) {
-        localStorage.setItem("playerUUID", playerUUID);
-      }
-      await joinRoom(roomId, username, playerUUID);
-      setIsJoined(true);
-      setRetryCount(0);
-    } catch (err) {
-      console.error("Failed to join room:", err);
-      setError(err instanceof Error ? err.message : "Failed to join room");
+    const attemptJoinRoom = async () => {
+      try {
+        setIsJoining(true);
+        setError(null);
+        
+        const playerUUID = localStorage.getItem('playerUUID');
+        if (!playerUUID) {
+          throw new Error('Player UUID not found');
+        }
 
-      if (retryCount < maxRetries) {
-        console.log(`Retrying join (${retryCount + 1}/${maxRetries})...`);
-        setRetryCount((prev) => prev + 1);
-        setTimeout(attemptJoinRoom, 2000);
+        console.log('Attempting to join room:', { roomId, username, playerUUID });
+        await joinRoom(roomId, username, playerUUID);
+        
+        // Request game state after successful join
+        socket.emit('requestGameState', { roomId });
+        
+        setIsJoined(true);
+        setRetryCount(0);
+      } catch (err) {
+        console.error('Failed to join room:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to join room';
+        setError(errorMessage);
+        
+        if (errorMessage === 'Room not found' && retryCount < maxRetries) {
+          console.log(`Retrying join (${retryCount + 1}/${maxRetries})...`);
+          setRetryCount(prev => prev + 1);
+          setTimeout(attemptJoinRoom, 1000 * Math.pow(2, retryCount)); // Exponential backoff
+        } else if (retryCount >= maxRetries) {
+          setError('Failed to join room after multiple attempts. Please try again later.');
+        }
+      } finally {
+        setIsJoining(false);
       }
-    } finally {
-      setIsJoining(false);
+    };
+
+    attemptJoinRoom();
+  }, [socket, isConnected, username, roomId, isJoining, isJoined, joinRoom, retryCount]);
+
+  // Handle socket errors
+  useEffect(() => {
+    if (socketError) {
+      setError(socketError);
     }
-  };
+  }, [socketError]);
+
+  // Show loading state while connecting
+  if (!isConnected) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-white mb-4">Connecting to server...</h1>
+          {error && <p className="text-red-500">{error}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  // Show joining state
+  if (!isJoined || isJoining) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-white mb-4">
+            {isJoining ? 'Joining room...' : 'Preparing to join room...'}
+          </h1>
+          {error && <p className="text-red-500">{error}</p>}
+          {retryCount > 0 && (
+            <p className="text-yellow-500">Retrying join ({retryCount}/{maxRetries})...</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const [fullUrl, setFullUrl] = useState("");
 
@@ -172,7 +231,7 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
         onRollDice={rollDice}
         onEndTurn={endTurn}
         gameStarted={gameStarted}
-        setgameStarted={setgameStarted}
+        setgameStarted={setGameStarted}
         setPlayers={setPlayers}
         attemptJoinRoom={attemptJoinRoom}
         refreshGameState={refreshGameState}
@@ -264,7 +323,7 @@ const RoomDashboard = ({ roomId }: { roomId: string }) => {
               <Button
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition cursor-pointer"
                 onClick={() => {
-                  setspectatingUser(true);
+                  setSpectatingUser(true);
                 }}
               >
                 Spectate

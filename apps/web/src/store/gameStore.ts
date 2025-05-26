@@ -1,40 +1,18 @@
 import { create } from 'zustand';
 import { z } from 'zod';
 import { Socket } from 'socket.io-client';
-import { GameSettingsSchema, type GameSettings } from '@monopoly/shared';
+import { GameSettingsSchema, type GameSettings, PlayerSchema, type Player, SpaceSchema, type Space } from '@monopoly/shared';
 
 // Zod schemas for runtime validation
-const playerSchema = z.object({
-  id: z.string(),
-  uuid: z.string(),
-  isLeader: z.boolean(),
-  name: z.string(),
-  color: z.string(),
-  position: z.number().min(0).max(39),
-  money: z.number().min(0),
-  properties: z.array(z.any()),
-  inJail: z.boolean(),
-  jailTurns: z.number().min(0),
-  cards: z.array(z.any()),
-  hasRolled: z.boolean(),
-  bankRupt: z.boolean()
-});
-
-const spaceSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  type: z.enum(['city', 'airport', 'utility', 'surprise', 'treasure', 'tax', 'special', 'chance', 'community', 'corner']),
+const spaceSchema = SpaceSchema.extend({
   position: z.union([
     z.number().min(0).max(39),
     z.enum(['top', 'right', 'bottom', 'left', 'top-right', 'bottom-right', 'bottom-left', 'top-left'])
   ]),
-  price: z.number().optional(),
-  rent: z.number().optional(),
-  ownedBy: z.string().nullable(),
 });
 
 const gameStateSchema = z.object({
-  players: z.array(playerSchema),
+  players: z.array(PlayerSchema),
   settings: GameSettingsSchema,
   currentPlayerIndex: z.number().min(0),
   boardSpaces: z.array(spaceSchema),
@@ -48,8 +26,6 @@ const gameStateSchema = z.object({
 });
 
 // TypeScript types inferred from Zod schemas
-export type Player = z.infer<typeof playerSchema>;
-export type Space = z.infer<typeof spaceSchema>;
 export type GameState = z.infer<typeof gameStateSchema>;
 
 interface GameStore {
@@ -87,7 +63,90 @@ export const useGameStore = create<GameStore>((set, get) => ({
   gameMessage: '',
 
   // Setters
-  setSocket: (socket) => set({ socket }),
+  setSocket: (socket) => {
+    if (socket) {
+      // Set up socket event listeners
+      socket.on('connect', () => {
+        console.log('Socket connected, requesting game state...');
+        const { gameState } = get();
+        if (gameState?.roomId) {
+          socket.emit('requestGameState', { roomId: gameState.roomId });
+        }
+      });
+
+      // Handle reconnection
+      socket.on('reconnect', () => {
+        console.log('Socket reconnected, requesting game state...');
+        const { gameState } = get();
+        if (gameState?.roomId) {
+          socket.emit('requestGameState', { roomId: gameState.roomId });
+        }
+      });
+
+      // Error handling
+      const handleError = (error: string | Error | { message: string }) => {
+        console.error('Socket error:', error);
+        const errorMessage = typeof error === 'string' 
+          ? error 
+          : error instanceof Error 
+            ? error.message 
+            : error.message;
+        set({ error: errorMessage });
+        
+        // Auto-clear non-critical errors after 5 seconds
+        setTimeout(() => {
+          set({ error: null });
+        }, 5000);
+      };
+
+      socket.on('error', handleError);
+      socket.on('connect_error', (error: Error) => handleError(error));
+      socket.on('reconnect_error', (error: Error) => handleError(error));
+      socket.on('reconnect_failed', () => handleError('Failed to reconnect to server'));
+
+      // Rest of the socket event listeners...
+      socket.on('playerJoined', (data: { player: Player }) => {
+        console.log('Player joined event received:', data);
+        const { gameState } = get();
+        if (gameState) {
+          // Check if player already exists to avoid duplicates
+          const playerExists = gameState.players.some(p => p.id === data.player.id);
+          if (!playerExists) {
+            const updatedState = {
+              ...gameState,
+              players: [...gameState.players, data.player]
+            };
+            set({ gameState: updatedState });
+          }
+        }
+      });
+
+      socket.on('playerLeft', (data: { playerId: string }) => {
+        console.log('Player left event received:', data);
+        const { gameState } = get();
+        if (gameState) {
+          const updatedState = {
+            ...gameState,
+            players: gameState.players.filter(p => p.id !== data.playerId)
+          };
+          set({ gameState: updatedState });
+        }
+      });
+
+      socket.on('gameStateUpdated', (newState: GameState) => {
+        console.log('Game state updated:', newState);
+        try {
+          // Validate state with Zod
+          const validatedState = gameStateSchema.parse(newState);
+          set({ gameState: validatedState });
+        } catch (error) {
+          console.error('Invalid game state received:', error);
+          set({ error: 'Invalid game state received' });
+        }
+      });
+    }
+    set({ socket });
+  },
   setGameState: (state) => {
     try {
       // Validate state with Zod

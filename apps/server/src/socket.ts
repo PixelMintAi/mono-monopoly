@@ -98,7 +98,7 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
           jailTurns: 0,
           cards: [],
           hasRolled: false,
-          bankRupt:false
+          bankRupt: false,
         }],
         gameStarted: false,
         currentPlayerIndex: 0,
@@ -124,7 +124,7 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
     });
 
     // Join an existing room
-    socket.on('joinRoom', ({ roomId, username,playerUUID }: SocketEvents['joinRoom']) => {
+    socket.on('joinRoom', ({ roomId, username, playerUUID }: SocketEvents['joinRoom']) => {
       const room = rooms.get(roomId);
       if (!room) {
         return socket.emit('error', 'Room not found');
@@ -136,11 +136,22 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
         return socket.emit('error', 'Room is full');
       }
 
+      // Check if player already exists (prevents duplicate joins)
+      const existingPlayer = room.players.find(p => p.uuid === playerUUID);
+      if (existingPlayer) {
+        // Update socket ID for reconnecting player
+        existingPlayer.id = socket.id;
+        socket.join(roomId);
+        socket.emit('joinConfirmed');
+        broadcastGameState(io, room);
+        return;
+      }
+
       const player: Player = {
         id: socket.id,
         name: username,
-        uuid:playerUUID,
-        isLeader:false,
+        uuid: playerUUID,
+        isLeader: false,
         color: '#0000FF',
         position: 0,
         money: room.settings.startingAmount,
@@ -149,45 +160,31 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
         jailTurns: 0,
         cards: [],
         hasRolled: false,
-        bankRupt:false
+        bankRupt: false,
       };
+
+      // Add player to room
       room.players.push(player);
       socket.join(roomId);
 
-      // Confirmation to the new player
-      socket.emit('joinConfirmed', {
-        roomId,
-        playerId: socket.id,
-        waitingForPlayers: room.players.length < room.settings.maxPlayers,
-        currentPlayers: room.players.length,
-        maxPlayers: room.settings.maxPlayers,
-      });
-      io.to(roomId).emit('playerJoined', {
-        playerId: socket.id,
-        playerName: player.name,
-        playerCount: room.players.length,
-        maxPlayers: room.settings.maxPlayers
-      });
-      console.log("Emitting gameStateUpdated to room", roomId);
-      io.to(roomId).emit("gameStateUpdated",{
-        roomId: room.id,
-        settings:room.settings,
-        players: room.players,
-        currentPlayerIndex: room.currentPlayerIndex,
-        gameStarted: room.gameStarted,
-        lastDiceRoll: room.lastDiceRoll,
-        boardSpaces: room.boardSpaces,
-      });
-      
-      // Notify everyone of updated waiting status & state
+      // First, broadcast to everyone that a new player has joined
+      io.to(roomId).emit('playerJoined', { player });
+
+      // Then send confirmation to the joining player
+      socket.emit('joinConfirmed');
+
+      // Finally, broadcast the updated game state to everyone
+      broadcastGameState(io, room);
+
+      // Update waiting status for all players
       io.to(roomId).emit('waitingStatus', {
         roomId,
         waitingForPlayers: room.players.length < room.settings.maxPlayers,
         currentPlayers: room.players.length,
         maxPlayers: room.settings.maxPlayers,
       });
-      broadcastGameState(io, room);
-      console.log(`${username} joined room ${roomId}`);
+
+      console.log(`${username} joined room ${roomId}. Total players: ${room.players.length}`);
     });
 
     // Start the game
@@ -266,16 +263,18 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
     player.jailTurns = 0;
     io.to(roomId).emit('gameMessage', `${player.name} landed on Go To Jail! Sent to jail at space 10.`);
   }
-  // Surprise card
   // Vacation space
-  else if (currentSpace.id === 'vacation') {
+  else if (currentSpace.id === 'vacation' && typeof currentSpace.price === 'number') {
     player.money += currentSpace.price;
     io.to(roomId).emit('gameMessage', `${player.name} received $${currentSpace.price} for vacation!`);
   }
   // Tax space
-  else if (currentSpace.type === 'tax') {
+  else if (currentSpace.type === 'tax' && typeof currentSpace.price === 'number') {
     player.money -= currentSpace.price;
-    room.boardSpaces[20].price += currentSpace.price;
+    const taxSpace = room.boardSpaces[20];
+    if (taxSpace && typeof taxSpace.price === 'number') {
+      taxSpace.price += currentSpace.price;
+    }
     io.to(roomId).emit('gameMessage', `${player.name} paid $${currentSpace.price} in taxes.`);
   }
   // Property logic
@@ -396,24 +395,30 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
     socket.on('disconnect', () => {
       console.log('Client disconnected:', socket.id);
       rooms.forEach((room, roomId) => {
-        const idx = room.players.findIndex(p => p.id === socket.id);
-        console.log(idx,room.players.length,'index')
-        if (idx === -1) return;
+        const playerIndex = room.players.findIndex(p => p.id === socket.id);
+        if (playerIndex === -1) return;
 
-        // room.players.splice(idx, 1);
+        const disconnectedPlayer = room.players[playerIndex];
+        
+        // Remove the player
+        room.players.splice(playerIndex, 1);
 
+        // If room is empty, delete it
         if (room.players.length === 0) {
           rooms.delete(roomId);
           console.log(`Room ${roomId} deleted (empty)`);
           return;
         }
 
-        // Adjust turn index
+        // Adjust turn index if needed
         if (room.currentPlayerIndex >= room.players.length) {
           room.currentPlayerIndex = 0;
         }
 
-        // Notify about waiting status if game not started
+        // Notify all players about the disconnection
+        io.to(roomId).emit('playerLeft', { playerId: socket.id });
+
+        // Update waiting status if game hasn't started
         if (!room.gameStarted) {
           io.to(roomId).emit('waitingStatus', {
             roomId,
@@ -423,19 +428,10 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
           });
         }
 
-        // Broadcast updated game state or error
-        if (validateRoomState(room)) {
-          broadcastGameState(io, room);
-          io.to(roomId).emit('playerLeft', {
-            playerId: socket.id,
-            waitingForPlayers: !room.gameStarted && room.players.length < room.settings.maxPlayers,
-            currentPlayers: room.players.length,
-            maxPlayers: room.settings.maxPlayers,
-          });
-        } else {
-          broadcastError(io, roomId, 'Invalid room state after disconnect');
-        }
-        console.log(`Player removed from room ${roomId}`);
+        // Broadcast updated game state
+        broadcastGameState(io, room);
+        
+        console.log(`${disconnectedPlayer.name} left room ${roomId}. Remaining players: ${room.players.length}`);
       });
     });
 

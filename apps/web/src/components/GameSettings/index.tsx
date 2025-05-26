@@ -21,7 +21,6 @@ import { Player } from "@/types/game";
 import type { GameSettings } from "@/types/game";
 import { GameState } from "@/store/gameStore";
 import { useGameStore } from "@/store/gameStore";
-import { useDebounce } from "@/hooks/useDebounce";
 
 const GameSettings = ({
   leader,
@@ -39,29 +38,14 @@ const GameSettings = ({
   setPlayers: React.Dispatch<React.SetStateAction<Player[]>>;
   playersCount: string;
   setplayersCount: any;
-  currentPlayer:Player | null;
-  updateSettings:any
-  refreshGameState:any;
-  gameState:GameState
+  currentPlayer: Player | null;
+  updateSettings: any;
+  refreshGameState: any;
+  gameState: GameState;
 }) => {
-  
-  const [startingCash, setstartingCash] = useState<string>("1500");
-  const [privateRoom, setprivateRoom] = useState<boolean>(true);
-  const settingsMenu = [
-    {
-      id: "max-players",
-      name: "Maximum Players",
-      desc: "How many players can join the game",
-    },
-    {
-      id: "room-type",
-      name: "Private Room",
-      desc: "How many players can join the game",
-    },
-  ];
-  const [poolAmountEntered, setpoolAmountEntered] = useState(0.001)
-  const [cryptoPoolActivated, setcryptoPoolActivated] =
-    useState<boolean>(true);
+  const [startingCash, setStartingCash] = useState<string>("1500");
+  const [poolAmountEntered, setPoolAmountEntered] = useState(0.001);
+  const [cryptoPoolActivated, setCryptoPoolActivated] = useState<boolean>(true);
 
   // Subscribe to specific parts of the game state
   const gameSettings = useGameStore(state => state.gameState?.settings);
@@ -69,34 +53,32 @@ const GameSettings = ({
   // Update local state when game settings change
   useEffect(() => {
     if (gameSettings) {
-      setstartingCash(String(gameSettings.startingAmount));
+      setStartingCash(String(gameSettings.startingAmount));
       setplayersCount(String(gameSettings.maxPlayers));
-      setcryptoPoolActivated(gameSettings.cryptoPoolActivated);
-      setpoolAmountEntered(gameSettings.poolAmountToEnter);
+      setCryptoPoolActivated(gameSettings.cryptoPoolActivated);
+      setPoolAmountEntered(gameSettings.poolAmountToEnter);
     }
   }, [gameSettings, setplayersCount]);
 
-  // Replace lodash debounce with our custom hook
-  const debouncedUpdateSettings = useDebounce((settings: GameSettings) => {
-    updateSettings(settings);
-    refreshGameState();
-  }, 500);
+  // Handle settings changes directly
+  const handleSettingsChange = useCallback((newSettings: Partial<GameSettings>) => {
+    if (!currentPlayer?.isLeader || gameState?.gameStarted) return;
 
-  // Update settings when local state changes
-  useEffect(() => {
-    const newSettings: GameSettings = {
+    const updatedSettings: GameSettings = {
       map: "Classic",
       maxPlayers: Number(playersCount),
       startingAmount: Number(startingCash),
       cryptoPoolActivated,
-      poolAmountToEnter: poolAmountEntered
+      poolAmountToEnter: poolAmountEntered,
+      ...newSettings
     };
 
-    // Only update if we have a complete settings object
-    if (currentPlayer?.isLeader && !gameState?.gameStarted) {
-      debouncedUpdateSettings(newSettings);
+    // Only update if settings actually changed
+    if (JSON.stringify(updatedSettings) !== JSON.stringify(gameSettings)) {
+      updateSettings(updatedSettings);
+      refreshGameState();
     }
-  }, [startingCash, privateRoom, cryptoPoolActivated, poolAmountEntered, playersCount, debouncedUpdateSettings, currentPlayer?.isLeader, gameState?.gameStarted]);
+  }, [currentPlayer?.isLeader, gameState?.gameStarted, playersCount, startingCash, cryptoPoolActivated, poolAmountEntered, gameSettings, updateSettings, refreshGameState]);
 
   return (
     <div className="flex flex-col ml-6 mr-4 p-2 bg-fuchsia-950 rounded">
@@ -104,18 +86,16 @@ const GameSettings = ({
       <div className="flex flex-col gap-4 mt-4">
         <div className="flex items-center justify-between">
           <div className="flex gap-2 items-center">
-            <div>
-              <FaPeopleGroup />
-            </div>
+            <div><FaPeopleGroup /></div>
             <text>Max Players</text>
-            {/* <text>How many players can join the game</text> */}
           </div>
           <div>
             <Select
-            disabled={!currentPlayer?.isLeader ||gameState?.gameStarted}
+              disabled={!currentPlayer?.isLeader || gameState?.gameStarted}
               value={playersCount}
-              onValueChange={(e) => {
-                setplayersCount(e);
+              onValueChange={(value) => {
+                setplayersCount(value);
+                handleSettingsChange({ maxPlayers: Number(value) });
               }}
             >
               <SelectTrigger className="w-[80px] cursor-pointer">
@@ -123,64 +103,27 @@ const GameSettings = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="2">2</SelectItem>
-                  <SelectItem value="3">3</SelectItem>
-                  <SelectItem value="4">4</SelectItem>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="6">6</SelectItem>
+                  {[2, 3, 4, 5, 6].map((num) => (
+                    <SelectItem key={num} value={String(num)}>{num}</SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
           </div>
         </div>
+
         <div className="flex items-center justify-between">
           <div className="flex gap-2 items-center">
-            <div>
-              <RiChatPrivateLine />
-            </div>
-            <text>Private Room</text>
-            {/* <text>How many players can join the game</text> */}
-          </div>
-          <div className="flex gap-2 mr-2">
-            <Switch
-              color="#fff"
-              checked={privateRoom}
-              disabled={!currentPlayer?.isLeader ||gameState?.gameStarted}
-              onCheckedChange={(checked) => {
-                setprivateRoom(checked);
-              }}
-              className={
-                privateRoom
-                  ? "bg-blue-500 data-[state=checked]:bg-blue-500 cursor-pointer"
-                  : "bg-gray-300 cursor-pointer"
-              }
-            />
-          </div>
-        </div>
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2 items-center">
-            <div>
-              <FaMapMarkedAlt />
-            </div>
-            <text>Map</text>
-            {/* <text>How many players can join the game</text> */}
-          </div>
-          <div className="flex gap-2 mr-2">Classic</div>
-        </div>
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2 items-center">
-            <div>
-              <TbBrandCashapp />
-            </div>
+            <div><TbBrandCashapp /></div>
             <text>Starting Cash</text>
-            {/* <text>How many players can join the game</text> */}
           </div>
           <div>
             <Select
               value={startingCash}
-              disabled={!currentPlayer?.isLeader ||gameState?.gameStarted}
-              onValueChange={(e) => {
-                setstartingCash(e);
+              disabled={!currentPlayer?.isLeader || gameState?.gameStarted}
+              onValueChange={(value) => {
+                setStartingCash(value);
+                handleSettingsChange({ startingAmount: Number(value) });
               }}
             >
               <SelectTrigger className="w-[85px] cursor-pointer">
@@ -188,16 +131,15 @@ const GameSettings = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="1000">1000</SelectItem>
-                  <SelectItem value="1500">1500</SelectItem>
-                  <SelectItem value="2000">2000</SelectItem>
-                  <SelectItem value="2500">2500</SelectItem>
-                  <SelectItem value="3000">3000</SelectItem>
+                  {[1000, 1500, 2000, 2500, 3000].map((amount) => (
+                    <SelectItem key={amount} value={String(amount)}>{amount}</SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
           </div>
         </div>
+
         <div className="flex justify-between">
           <div className="flex gap-2 items-center">
             <FaEthereum />
@@ -207,27 +149,35 @@ const GameSettings = ({
             <Switch
               color="#fff"
               checked={cryptoPoolActivated}
-              disabled={!currentPlayer?.isLeader ||gameState?.gameStarted}
+              disabled={!currentPlayer?.isLeader || gameState?.gameStarted}
               onCheckedChange={(checked) => {
-                setcryptoPoolActivated(checked);
+                setCryptoPoolActivated(checked);
+                handleSettingsChange({ cryptoPoolActivated: checked });
               }}
-              className={
-                cryptoPoolActivated
-                  ? "bg-blue-500 data-[state=checked]:bg-blue-500 cursor-pointer"
-                  : "bg-gray-300 cursor-pointer"
-              }
+              className={cryptoPoolActivated ? "bg-blue-500 data-[state=checked]:bg-blue-500 cursor-pointer" : "bg-gray-300 cursor-pointer"}
             />
           </div>
         </div>
-        {cryptoPoolActivated &&<div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-          <RiMoneyDollarCircleFill />
-            Enter Pool Amount (ETH)
+
+        {cryptoPoolActivated && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <RiMoneyDollarCircleFill />
+              Enter Pool Amount (ETH)
+            </div>
+            <Input
+              disabled={!currentPlayer?.isLeader || gameState?.gameStarted}
+              type="number"
+              placeholder="Enter Amount in Eth"
+              value={poolAmountEntered}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                setPoolAmountEntered(value);
+                handleSettingsChange({ poolAmountToEnter: value });
+              }}
+            />
           </div>
-          <Input disabled={!currentPlayer?.isLeader ||gameState?.gameStarted} type="number" placeholder="Enter Amount in Eth" value={poolAmountEntered} onChange={(e)=>{
-            setpoolAmountEntered(Number(e.target.value))
-          }} />
-        </div>}
+        )}
       </div>
     </div>
   );

@@ -17,6 +17,8 @@ const HomeDashboard = () => {
   const router = useRouter();
   const [allRoomsSelected, setallRoomsSelected] = useState<boolean>(false);
   const [username, setusername] = useState<string>("");
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [allRooms, setallRooms] = useState<room[]>([
     {
         roomId:'1',
@@ -56,27 +58,46 @@ const HomeDashboard = () => {
   ])
   const [localRoomId, setLocalRoomId] = useState<string>('');
   const { socket, createRoom } = useGameStore();
-      const initializeRoom = async () => {
-      try {
-        const playerUUID = getOrCreatePlayerUUID();
-        if(playerUUID){
-          localStorage.setItem('playerUUID', playerUUID);
-        }
-        const settings = {
-          map: 'Classic' as const,
-          maxPlayers: 4,
-          startingAmount: 1500,
-          cryptoPoolActivated:false,
-          poolAmountToEnter:0.001
-        };
-        const roomId = await createRoom(settings, username,playerUUID);
-        router.push(`/room/${roomId}`)
-        setLocalRoomId(roomId);
-      } catch (error) {
-        console.error('Failed to create room:', error);
+
+  const initializeRoom = async () => {
+    if (!username.trim()) {
+      setError('Please enter a username');
+      return;
+    }
+
+    try {
+      setIsCreatingRoom(true);
+      setError(null);
+      
+      const playerUUID = getOrCreatePlayerUUID();
+      if (playerUUID) {
+        localStorage.setItem('playerUUID', playerUUID);
       }
-    };
-      const { isConnected, error, gameState } = useGameSync(localRoomId);
+
+      const settings = {
+        map: 'Classic' as const,
+        maxPlayers: 4,
+        startingAmount: 1500,
+        cryptoPoolActivated: false,
+        poolAmountToEnter: 0.001
+      };
+
+      // Wait for room creation to complete
+      const roomId = await createRoom(settings, username, playerUUID);
+      
+      // Only navigate after successful room creation
+      if (roomId) {
+        router.push(`/room/${roomId}`);
+      }
+    } catch (error) {
+      console.error('Failed to create room:', error);
+      setError(error instanceof Error ? error.message : 'Failed to create room');
+    } finally {
+      setIsCreatingRoom(false);
+    }
+  };
+
+  const { isConnected, error: gameSyncError, gameState } = useGameSync(localRoomId);
 
   useEffect(()=>{
     if(username!==""){
@@ -154,25 +175,37 @@ const HomeDashboard = () => {
           value={username}
           onChange={(e) => {
             setusername(e.target.value);
+            setError(null);
           }}
         />
+        {error && (
+          <p className="text-red-500 text-sm mt-2">{error}</p>
+        )}
       </div>
       <div className="flex gap-2">
-        <Button className="cursor-pointer" onClick={()=>{
-            setallRoomsSelected(true)
-        }}>
+        <Button 
+          className="cursor-pointer" 
+          onClick={() => setallRoomsSelected(true)}
+        >
           <IoIosPeople />
           All Rooms
         </Button>
         <Button
           className="cursor-pointer"
-          onClick={() => {
-            initializeRoom()
-            // router.push(`create-room/${generateRandomCombo()}`);
-          }}
+          onClick={initializeRoom}
+          disabled={isCreatingRoom || !username.trim()}
         >
-          <IoGameControllerOutline />
-          Create A Room
+          {isCreatingRoom ? (
+            <>
+              <IoReloadSharp className="animate-spin mr-2" />
+              Creating Room...
+            </>
+          ) : (
+            <>
+              <IoGameControllerOutline />
+              Create A Room
+            </>
+          )}
         </Button>
       </div>
     </div>

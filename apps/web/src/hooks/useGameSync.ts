@@ -32,10 +32,8 @@ export function useGameSync(roomId: string) {
       isRefreshingRef.current = true;
       console.log("[GameSync] Manually refreshing game state");
       socket.emit("requestGameState", { roomId });
-      // Reset the refreshing flag after a short delay
-      setTimeout(() => {
-        isRefreshingRef.current = false;
-      }, 100);
+      // Reset the refreshing flag immediately after emitting
+      isRefreshingRef.current = false;
     }
   }, [socket, roomId]);
 

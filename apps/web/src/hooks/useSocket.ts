@@ -34,12 +34,14 @@ export function useSocket(): UseSocketReturn {
       console.log('Socket URL:', socketUrl);
       
       const socket = io(socketUrl, {
-        transports: ['websocket', 'polling'],
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        timeout: 20000,
+        transports: ['websocket'],
+        reconnectionAttempts: 3,
+        reconnectionDelay: 2000,
+        timeout: 10000,
         autoConnect: true,
         withCredentials: true,
+        forceNew: true,
+        upgrade: false,
       });
 
       socketRef.current = socket;
@@ -52,26 +54,26 @@ export function useSocket(): UseSocketReturn {
         setRetryCount(0);
       });
 
-      socket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
-        setError(`Connection error: ${error.message}`);
-        if (retryCount < maxRetries) {
-          console.log(`Retrying connection (${retryCount + 1}/${maxRetries})...`);
-          setRetryCount(prev => prev + 1);
-        } else {
-          console.error('Max retry attempts reached');
-        }
-      });
-
-      socket.on('error', (errorMessage: string) => {
-        console.error('Socket error:', errorMessage);
+      // Error handling
+      const handleError = (error: string | Error | { message: string }) => {
+        console.error('Socket error:', error);
+        const errorMessage = typeof error === 'string' 
+          ? error 
+          : error instanceof Error 
+            ? error.message 
+            : error.message;
         setError(errorMessage);
         
         // Auto-clear non-critical errors after 5 seconds
         setTimeout(() => {
           setError(prev => prev === errorMessage ? null : prev);
         }, 5000);
-      });
+      };
+
+      socket.on('error', handleError);
+      socket.on('connect_error', (error: Error) => handleError(error));
+      socket.on('reconnect_error', (error: Error) => handleError(error));
+      socket.on('reconnect_failed', () => handleError('Failed to reconnect to server'));
 
       socket.on('disconnect', (reason) => {
         console.log('Socket disconnected:', reason);
@@ -89,16 +91,6 @@ export function useSocket(): UseSocketReturn {
         setError(null);
       });
 
-      socket.on('reconnect_error', (error) => {
-        console.error('Socket reconnection error:', error);
-        setError(`Reconnection error: ${error.message}`);
-      });
-
-      socket.on('reconnect_failed', () => {
-        console.error('Socket reconnection failed');
-        setError('Failed to reconnect after multiple attempts. Please refresh the page.');
-      });
-
       // Enhanced debugging events
       socket.on('playerJoined', (data) => {
         console.log('Player joined event received:', data);
@@ -110,7 +102,6 @@ export function useSocket(): UseSocketReturn {
 
     } catch (error) {
       console.error('Failed to initialize socket:', error);
-      setError(`Socket initialization error: ${error instanceof Error ? error.message : String(error)}`);
       
       if (retryCount < maxRetries) {
         console.log(`Retrying initialization (${retryCount + 1}/${maxRetries})...`);
@@ -186,21 +177,11 @@ export function useSocket(): UseSocketReturn {
         reject(new Error(errorMessage));
       };
 
-      const onTimeout = () => {
-        console.error('Room creation timed out');
-        cleanup();
-        reject(new Error('Room creation timed out after 5 seconds'));
-      };
-
       // Create cleanup function for event listeners
       const cleanup = () => {
-        clearTimeout(timeoutId);
         socketRef.current?.off('roomCreated', onRoomCreated);
         socketRef.current?.off('error', onError);
       };
-
-      // Set timeout for operation
-      const timeoutId = setTimeout(onTimeout, 5000);
 
       // Register event listeners
       socketRef.current.once('roomCreated', onRoomCreated);
@@ -228,32 +209,29 @@ export function useSocket(): UseSocketReturn {
         resolve();
       };
 
+      const onPlayerJoined = (data: { player: Player }) => {
+        console.log('New player joined:', data.player);
+        // This event will be handled by the game store to update the players list
+      };
+
       const onError = (errorMessage: string) => {
         console.error('Join room error:', errorMessage);
         cleanup();
         reject(new Error(errorMessage));
       };
 
-      const onTimeout = () => {
-        console.error('Join room timed out');
-        cleanup();
-        reject(new Error('Join room timed out after 5 seconds'));
-      };
-
       // Create cleanup function
       const cleanup = () => {
-        clearTimeout(timeoutId);
         socketRef.current?.off('joinConfirmed', onJoinSuccess);
-        socketRef.current?.off('gameStateUpdated', onJoinSuccess);  // Either event confirms success
+        socketRef.current?.off('gameStateUpdated', onJoinSuccess);
+        socketRef.current?.off('playerJoined', onPlayerJoined);
         socketRef.current?.off('error', onError);
       };
 
-      // Set timeout
-      const timeoutId = setTimeout(onTimeout, 5000);
-
-      // Register event listeners - accept either joinConfirmed or gameStateUpdated as success
+      // Register event listeners
       socketRef.current.once('joinConfirmed', onJoinSuccess);
       socketRef.current.once('gameStateUpdated', onJoinSuccess);
+      socketRef.current.on('playerJoined', onPlayerJoined); // Keep this listener active
       socketRef.current.once('error', onError);
 
       // Emit join room event
@@ -283,21 +261,11 @@ export function useSocket(): UseSocketReturn {
         reject(new Error(errorMessage));
       };
 
-      const onTimeout = () => {
-        console.error('Start game timed out');
-        cleanup();
-        reject(new Error('Start game timed out after 5 seconds'));
-      };
-
       // Create cleanup function
       const cleanup = () => {
-        clearTimeout(timeoutId);
         socketRef.current?.off('gameStarted', onGameStarted);
         socketRef.current?.off('error', onError);
       };
-
-      // Set timeout
-      const timeoutId = setTimeout(onTimeout, 5000);
 
       // Register event listeners
       socketRef.current.once('gameStarted', onGameStarted);

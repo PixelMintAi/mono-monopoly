@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSocket } from '@/hooks/useSocket';
-import GameBoard from '@/components/GameBoard';
+import GameBoard from '@/components/GameBoard/copy';
 import { Button } from '@/components/ui/button';
 import { Player } from '@/types/game';
 
@@ -40,7 +40,9 @@ export function RoomClient({ roomId, username }: RoomClientProps) {
       setError(null);
       console.log('Attempting to join room:', { roomId, username });
       
-      await joinRoom(roomId, username);
+      // Generate a player UUID for the join request
+      const playerUUID = crypto.randomUUID();
+      await joinRoom(roomId, username, playerUUID);
       setIsJoined(true);
       setRetryCount(0);
     } catch (err) {
@@ -50,7 +52,8 @@ export function RoomClient({ roomId, username }: RoomClientProps) {
       if (retryCount < maxRetries) {
         console.log(`Retrying join (${retryCount + 1}/${maxRetries})...`);
         setRetryCount(prev => prev + 1);
-        setTimeout(attemptJoinRoom, 2000);
+        // Remove setTimeout and retry immediately
+        attemptJoinRoom();
       }
     } finally {
       setIsJoining(false);
@@ -176,6 +179,8 @@ export function RoomClient({ roomId, username }: RoomClientProps) {
       socket.off('error', handleError);
       socket.off('connect_error', handleConnectError);
       socket.off('disconnect', handleDisconnect);
+      socket.off('joinConfirmed');
+      socket.off('roomCreated');
     };
   }, [socket, isConnected, username, roomId, isJoined, isJoining, attemptJoinRoom]);
 
@@ -186,9 +191,11 @@ export function RoomClient({ roomId, username }: RoomClientProps) {
     }
   }, [socketError]);
 
-  const handleRollDice = (roll: number[]) => {
+  const handleRollDice = useCallback(() => {
     if (!socket || !isConnected || !isJoined) return;
     const currentPlayer = players[currentPlayerIndex];
+    // Generate random dice roll
+    const roll = [Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1];
     const newPosition = (currentPlayer.position + roll[0] + roll[1]) % 40;
     
     socket.emit('playerMove', {
@@ -196,7 +203,7 @@ export function RoomClient({ roomId, username }: RoomClientProps) {
       playerId: currentPlayer.id,
       newPosition
     });
-  };
+  }, [socket, isConnected, isJoined, players, currentPlayerIndex, roomId]);
 
   const handleEndTurn = () => {
     if (!socket || !isConnected || !isJoined) return;
@@ -283,13 +290,6 @@ export function RoomClient({ roomId, username }: RoomClientProps) {
         )}
 
         <GameBoard
-          players={players}
-          currentPlayerIndex={currentPlayerIndex}
-          onRollDice={handleRollDice}
-          onEndTurn={handleEndTurn}
-          gameStarted={gameStarted}
-          setGameStarted={setGameStarted}
-          setPlayers={setPlayers}
           roomId={roomId}
         />
       </div>

@@ -35,7 +35,8 @@ export const PlayerSchema = z.object({
   inJail: z.boolean(),
   jailTurns: z.number(),
   cards: z.array(z.string()),
-  hasRolled: z.boolean()
+  hasRolled: z.boolean(),
+  bankRupt: z.boolean().default(false)
 });
 
 export type Player = z.infer<typeof PlayerSchema>;
@@ -71,9 +72,9 @@ export type GameState = z.infer<typeof GameStateSchema>;
 // Socket event types
 export type SocketEvents = {
   // Room events
-  createRoom: { roomId: string; settings: GameSettings; username: string };
+  createRoom: { roomId: string; settings: GameSettings; username: string; playerUUID: string };
   roomCreated: { roomId: string };
-  joinRoom: { roomId: string; username: string };
+  joinRoom: { roomId: string; username: string; playerUUID: string };
   playerJoined: { player: Player };
   playerLeft: { playerId: string };
   startGame: { roomId: string };
@@ -89,8 +90,11 @@ export type SocketEvents = {
   rollDice: { roomId: string };
   endTurn: { roomId: string };
   buyProperty: { roomId: string; propertyId: string };
-  updateSettings:{roomId:string; settings:GameSettings}
+  updateSettings: { roomId: string; settings: GameSettings };
   
   // Error events
-  error: string;
+  error: string | Error | { message: string };
+  connect_error: Error;
+  reconnect_error: Error;
+  reconnect_failed: void;
 }; 
