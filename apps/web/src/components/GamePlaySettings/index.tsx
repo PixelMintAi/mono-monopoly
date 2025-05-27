@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const GamePlaySettings = ({leader}:{leader:string}) => {
+const GamePlaySettings = () => {
 
   return (
     <div className="flex flex-col ml-6 mt-4 mr-4 p-2 bg-fuchsia-950 rounded">

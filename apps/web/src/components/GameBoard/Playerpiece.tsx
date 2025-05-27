@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Player } from '@/types/game';
-import { Space } from '@/interfaces/interface';
+import { Space } from '@/app/game/types';
+
 
 interface PlayerPieceProps {
   player: Player;

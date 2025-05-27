@@ -31,6 +31,7 @@ function broadcastGameState(io: Server, room: Room) {
     gameStarted: room.gameStarted,
     lastDiceRoll: room.lastDiceRoll,
     boardSpaces: room.boardSpaces,
+    settings:room.settings
   });
 }
 
@@ -387,7 +388,36 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
         roomId,
         settings: room.settings,
       });
+      broadcastGameState(io, room);
     });
+
+    // Kick a player from the room (only by leader)
+    socket.on('kickPlayer', ({ roomId, targetPlayerId }: SocketEvents['kickPlayer']) => {
+      const room = rooms.get(roomId);
+      if (!room) return socket.emit('error', 'Room not found');
+
+      const leader = room.players.find(p => p.id === socket.id);
+      if (!leader || !leader.isLeader) {
+        return socket.emit('error', 'Only the room leader can kick players');
+      }
+
+      const targetIndex = room.players.findIndex(p => p.id === targetPlayerId);
+      if (targetIndex === -1) {
+        return socket.emit('error', 'Player to kick not found');
+      }
+
+      const kickedPlayer = room.players[targetIndex];
+
+      // Remove player from room
+      room.players.splice(targetIndex, 1);
+
+      // Notify the kicked player directly (if still connected)
+      io.to(roomId).emit('kickPlayer', {roomId, playerId: kickedPlayer.name });
+
+      broadcastGameState(io, room);
+      console.log(`${kickedPlayer.name} was kicked from room ${roomId} by ${leader.name}`);
+    });
+
 
 
     // ─── Cleanup ──────────────────────────────────────────────────────

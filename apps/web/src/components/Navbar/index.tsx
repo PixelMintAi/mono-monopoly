@@ -18,7 +18,7 @@ const Navbar = () => {
   const { data: session } = useSession();
 
   return (
-    <div className="h-8 fixed p-6 flex justify-between w-full ">
+    <div className="h-8 fixed p-6 flex justify-between w-full">
       <div
         className="flex cursor-pointer"
         onClick={() => {
@@ -62,9 +62,9 @@ const Navbar = () => {
             height={30}
             style={{borderRadius:'100px'}}
             />}
-            <text>
+            <div>
                 {session.user?.name}
-            </text>
+            </div>
           </div>
         )}
         <div>

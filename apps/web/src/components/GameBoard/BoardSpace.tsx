@@ -1,6 +1,8 @@
+
+import { Space } from '@/app/game/types';
 import React from 'react';
 
-import { Space } from '@/interfaces/interface';
+
 
 interface BoardSpaceProps {
   space: Space;

@@ -19,10 +19,11 @@ export interface Player {
   export interface Space {
     id: string;
     name: string;
-    type: string;
-    price?: number;
+    price: number;
     rent?: number;
     ownedBy?: string | null;
+    type: 'city' | 'airport' | 'utility' | 'surprise' | 'treasure' | 'tax' | 'special' | 'chance' | 'community' | 'corner';
+    position: number | 'top' | 'right' | 'bottom' | 'left' | 'top-right' | 'bottom-right' | 'bottom-left' | 'top-left';
   }
   
   export interface Room {
@@ -50,5 +51,5 @@ export interface Player {
     gameStarted: boolean;
     lastDiceRoll: any;
     boardSpaces: Space[];
-    settings?: any;
+    settings: any;
   }

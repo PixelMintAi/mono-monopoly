@@ -1,85 +1,127 @@
-"use client"
-import React, { useState, useEffect } from 'react';
-import { io, Socket } from 'socket.io-client';
-import { GameState, Player, Space } from './types';
-import { saveToStorage, loadFromStorage, clearAllStorage } from './persistence';
-import { setupSocketHandlers } from './socketHandlers';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
+"use client";
+import React, { useState, useEffect, useRef } from "react";
+import { io, Socket } from "socket.io-client";
+import { GameState, Player, Space } from "./types";
+import { saveToStorage, loadFromStorage, clearAllStorage } from "./persistence";
+import { setupSocketHandlers } from "./socketHandlers";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import AllPlayersInfo from "@/components/AllPlayersInfo";
+import Navbar from "@/components/Navbar";
+import GameSettings from "@/components/GameSettings";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FaEthereum } from "react-icons/fa";
+import { Switch } from "@/components/ui/switch";
+import GamePlaySettings from "@/components/GamePlaySettings";
+import BoardSpace from "@/components/GameBoard/BoardSpace";
+import Dice from "@/components/GameBoard/Dice";
+import PlayerPiece from "@/components/GameBoard/Playerpiece";
+import UserProperties from "@/components/UserProperties";
+import { FiCopy } from "react-icons/fi";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import TradeDashboard from "@/components/TradeDashboard";
 
 const MonopolyGame: React.FC = () => {
   // Connection state
   const [socket, setSocket] = useState<Socket | null>(null);
   const [connected, setConnected] = useState(false);
-  
+  const containerRef = useRef(null);
   // Navigation state with localStorage persistence
-  const [currentPageState, setCurrentPageState] = useState<'menu' | 'game'>(() => {
-    const savedPage = loadFromStorage('currentPage', 'menu');
-    const savedGameState = loadFromStorage('gameState', null);
-    // If we have a saved game state, go to game page
-    if (savedGameState && savedPage === 'game') {
-      return 'game';
+  const [currentPageState, setCurrentPageState] = useState<"menu" | "game">(
+    () => {
+      const savedPage = loadFromStorage("currentPage", "menu");
+      const savedGameState = loadFromStorage("gameState", null);
+      // If we have a saved game state, go to game page
+      if (savedGameState && savedPage === "game") {
+        return "game";
+      }
+      return "menu";
     }
-    return 'menu';
-  });
-  
+  );
+
   // Room state with localStorage persistence
-  const [roomId, setRoomId] = useState(() => loadFromStorage('roomId', ''));
-  const [username, setUsername] = useState(() => loadFromStorage('username', ''));
+  const [roomId, setRoomId] = useState(() => loadFromStorage("roomId", ""));
+  const [username, setUsername] = useState(() =>
+    loadFromStorage("username", "")
+  );
   const [playerUUID] = useState(() => {
-    let uuid = loadFromStorage('playerUUID', null);
+    let uuid = loadFromStorage("playerUUID", null);
     if (!uuid) {
       uuid = Math.random().toString(36).substr(2, 9);
-      saveToStorage('playerUUID', uuid);
+      saveToStorage("playerUUID", uuid);
     }
     return uuid;
   });
-  
+
+  useEffect(() => {
+    if (username !== "") {
+      saveToStorage("usernickname", username);
+    }
+  }, [username]);
+
   // Game state with localStorage persistence
   const [gameState, setGameState] = useState<GameState | null>(() => {
-    return loadFromStorage('gameState', null);
+    return loadFromStorage("gameState", null);
   });
   const [waitingStatus, setWaitingStatus] = useState<any>(() => {
-    return loadFromStorage('waitingStatus', null);
+    return loadFromStorage("waitingStatus", null);
   });
-  const [messages, setMessages] = useState<string[]>(() => {
-    return loadFromStorage('messages', []);
-  });
+  const [messages, setMessages] = useState<string[]>([]);
   const [availableProperty, setAvailableProperty] = useState<any>(null);
-  const [error, setError] = useState<string>('');
-  
+  const [error, setError] = useState<string>("");
+
   // Settings state with localStorage persistence
   const [roomSettings, setRoomSettings] = useState(() => {
-    return loadFromStorage('roomSettings', {
+    return loadFromStorage("roomSettings", {
       maxPlayers: 4,
       startingAmount: 1500,
-      poolAmountToEnter: 0
+      map: "Classic",
+      cryptoPoolActivated: false,
+      poolAmountToEnter: 0.001,
     });
   });
 
   // Save data to localStorage whenever state changes
   useEffect(() => {
-    saveToStorage('roomId', roomId);
+    saveToStorage("roomId", roomId);
   }, [roomId]);
 
   useEffect(() => {
-    saveToStorage('username', username);
+    saveToStorage("username", username);
   }, [username]);
 
   useEffect(() => {
-    saveToStorage('currentPage', currentPageState);
+    saveToStorage("currentPage", currentPageState);
   }, [currentPageState]);
 
   useEffect(() => {
-    saveToStorage('roomSettings', roomSettings);
+    saveToStorage("roomSettings", roomSettings);
   }, [roomSettings]);
 
   // Initialize socket connection
   useEffect(() => {
-    const newSocket = io('http://localhost:3001'); // Adjust URL as needed
+    const newSocket = io("http://localhost:3001"); // Adjust URL as needed
     setSocket(newSocket);
 
     setupSocketHandlers(
@@ -102,143 +144,274 @@ const MonopolyGame: React.FC = () => {
   // Helper functions
   const createRoom = () => {
     if (!socket || !roomId || !username) return;
-    
-    socket.emit('createRoom', {
+
+    socket.emit("createRoom", {
       roomId,
       settings: roomSettings,
       username,
-      playerUUID
+      playerUUID,
     });
   };
 
   const joinRoom = () => {
     if (!socket || !roomId || !username) return;
-    
-    socket.emit('joinRoom', {
+
+    socket.emit("joinRoom", {
       roomId,
       username,
-      playerUUID
+      playerUUID,
     });
   };
 
   const startGame = () => {
     if (!socket || !gameState) return;
-    socket.emit('startGame', { roomId: gameState.roomId });
+    socket.emit("startGame", { roomId: gameState.roomId });
   };
 
   const rollDice = () => {
     if (!socket || !gameState) return;
-    socket.emit('rollDice', { roomId: gameState.roomId });
+    socket.emit("rollDice", { roomId: gameState.roomId });
+  };
+
+  const updateSettings = () => {
+    if (!socket || !gameState) return;
+    socket.emit("updateSettings", {
+      roomId: gameState.roomId,
+      settings: roomSettings,
+    });
   };
 
   const buyProperty = () => {
     if (!socket || !gameState || !availableProperty) return;
-    socket.emit('buyProperty', { 
-      roomId: gameState.roomId, 
-      propertyId: availableProperty.propertyId 
+    socket.emit("buyProperty", {
+      roomId: gameState.roomId,
+      propertyId: availableProperty.propertyId,
     });
   };
 
+  const kickPlayer=(playerId:string)=>{
+    if (!socket || !gameState) return;
+    socket.emit('kickPlayer',{
+      roomId: gameState.roomId,
+      targetPlayerId:playerId
+    })
+  }
+
   const endTurn = () => {
     if (!socket || !gameState) return;
-    socket.emit('endTurn', { roomId: gameState.roomId });
+    socket.emit("endTurn", { roomId: gameState.roomId });
   };
 
   const requestGameState = () => {
     if (!socket || !gameState) return;
-    socket.emit('requestGameState', { roomId: gameState.roomId });
+    socket.emit("requestGameState", { roomId: gameState.roomId });
   };
 
   // Get current player
   const getCurrentPlayer = () => {
     if (!gameState) return null;
-    return gameState.players.find(p => p.uuid === playerUUID);
+    return gameState.players.find((p) => p.uuid === playerUUID);
   };
 
   const isCurrentPlayerTurn = () => {
     if (!gameState) return false;
     const currentPlayer = getCurrentPlayer();
-    return currentPlayer && gameState.players[gameState.currentPlayerIndex]?.uuid === playerUUID;
+    return (
+      currentPlayer &&
+      gameState.players[gameState.currentPlayerIndex]?.uuid === playerUUID
+    );
   };
 
+  const [isRolling, setisRolling] = useState(false);
+  const [players, setplayers] = useState([]);
   // Render functions
   const renderMenuPage = () => (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 to-indigo-700 flex items-center justify-center p-6">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-4xl text-center text-emerald-400">Monopoly</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <Label htmlFor="username">Username</Label>
-            <Input
-              id="username"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Your name"
-            />
-          </div>
-          <div>
-            <Label htmlFor="roomId">Room ID</Label>
-            <Input
-              id="roomId"
-              value={roomId}
-              onChange={e => setRoomId(e.target.value)}
-              placeholder="e.g. ABC123"
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="maxPlayers">Max</Label>
-              <Input
-                id="maxPlayers"
-                type="number"
-                min={2}
-                max={8}
-                value={roomSettings.maxPlayers}
-                onChange={e => setRoomSettings((s:any) => ({ ...s, maxPlayers: +e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="startingAmount">Start $</Label>
-              <Input
-                id="startingAmount"
-                type="number"
-                value={roomSettings.startingAmount}
-                onChange={e => setRoomSettings((s:any) => ({ ...s, startingAmount: +e.target.value }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="poolEntry">Pool $</Label>
-              <Input
-                id="poolEntry"
-                type="number"
-                value={roomSettings.poolAmountToEnter}
-                onChange={e => setRoomSettings((s:any) => ({ ...s, poolAmountToEnter: +e.target.value }))}
-              />
-            </div>
-          </div>
-          <div className="flex space-x-4">
-            <Button onClick={createRoom} disabled={!connected || !username || !roomId} className="flex-1">
-              Create
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={joinRoom}
-              disabled={!connected || !username || !roomId}
-              className="flex-1"
-            >
-              Join
-            </Button>
-          </div>
-          <p className="text-center text-sm">
-            {connected ? <span className="text-green-400">🟢 Online</span> : <span className="text-red-400">🔴 Offline</span>}
-          </p>
-        </CardContent>
-      </Card>
+    <div>
+      <Navbar />
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 to-indigo-700 flex items-center justify-center p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-4xl text-center text-emerald-400">
+              Monopoly
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Tabs defaultValue="createroom">
+              <TabsList className="bg-gray-600 cursor-pointer w-full">
+                <TabsTrigger className="cursor-pointer" value="createroom">
+                  Create Room
+                </TabsTrigger>
+                <TabsTrigger className="cursor-pointer" value="joinroom">
+                  Join Room
+                </TabsTrigger>
+                <TabsTrigger
+                  className="cursor-pointer"
+                  value="allrooms"
+                  disabled={true}
+                >
+                  All Rooms
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="createroom">
+                <div>
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Your name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="roomId">Room ID</Label>
+                  <Input
+                    id="roomId"
+                    value={roomId}
+                    onChange={(e) => setRoomId(e.target.value)}
+                    placeholder="e.g. ABC123"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="maxPlayers">Max Players</Label>
+                    <Select
+                      value={String(roomSettings.maxPlayers)}
+                      onValueChange={(value) => {
+                        setRoomSettings((s: any) => ({
+                          ...s,
+                          maxPlayers: value,
+                        }));
+                      }}
+                    >
+                      <SelectTrigger className="w-[80px] cursor-pointer">
+                        <SelectValue placeholder="Select Players" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {[2, 3, 4, 5, 6].map((num) => (
+                            <SelectItem key={num} value={String(num)}>
+                              {num}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="startingAmount">Starting Amount</Label>
+                    <Select
+                      value={String(roomSettings.startingAmount)}
+                      onValueChange={(value) => {
+                        setRoomSettings((s: any) => ({
+                          ...s,
+                          startingAmount: value,
+                        }));
+                      }}
+                    >
+                      <SelectTrigger className="w-[85px] cursor-pointer">
+                        <SelectValue placeholder="Select Starting Cash" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {[1000, 1500, 2000, 2500, 3000].map((amount) => (
+                            <SelectItem key={amount} value={String(amount)}>
+                              {amount}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col justify-between">
+                    <div className="flex gap-2 items-center">Crypto Pool</div>
+                    <div className="flex gap-2 mr-2">
+                      <Switch
+                        color="#fff"
+                        checked={roomSettings.cryptoPoolActivated}
+                        onCheckedChange={(checked) => {
+                          setRoomSettings((s: any) => ({
+                            ...s,
+                            cryptoPoolActivated: checked,
+                          }));
+                        }}
+                        className={
+                          roomSettings.cryptoPoolActivated
+                            ? "bg-blue-500 data-[state=checked]:bg-blue-500 cursor-pointer"
+                            : "bg-gray-300 cursor-pointer"
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="poolEntry">Enter Pool Amount</Label>
+                    <Input
+                      id="poolEntry"
+                      type="number"
+                      placeholder="0.001 ETH"
+                      disabled={!roomSettings.cryptoPoolActivated}
+                      value={roomSettings.poolAmountToEnter}
+                      onChange={(e) =>
+                        setRoomSettings((s: any) => ({
+                          ...s,
+                          poolAmountToEnter: +e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="flex space-x-4">
+                  <Button
+                    onClick={createRoom}
+                    disabled={!connected || !username || !roomId}
+                    className="flex-1 mt-[1rem]"
+                  >
+                    Create Room
+                  </Button>
+                </div>
+              </TabsContent>
+              <TabsContent value="joinroom">
+                <div>
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Your name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="roomId">Room ID</Label>
+                  <Input
+                    id="roomId"
+                    value={roomId}
+                    onChange={(e) => setRoomId(e.target.value)}
+                    placeholder="e.g. ABC123"
+                  />
+                </div>
+                <div className="flex space-x-4 mt-[1rem]">
+                  <Button
+                    onClick={joinRoom}
+                    disabled={!connected || !username || !roomId}
+                    className="flex-1"
+                  >
+                    Join Room
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+            <p className="text-center text-sm">
+              {connected ? (
+                <span className="text-green-400">🟢 Online</span>
+              ) : (
+                <span className="text-red-400">🔴 Offline</span>
+              )}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
-  
+
   const renderGamePage = () => {
     if (!gameState) {
       return (
@@ -248,19 +421,23 @@ const MonopolyGame: React.FC = () => {
         </div>
       );
     }
-  
+
     const currentPlayer = getCurrentPlayer();
     const myTurn = isCurrentPlayerTurn();
-  
+
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 to-indigo-800 p-4">
-           <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
+      <div>
+        <Navbar />
+        <div className=" pt-[5rem] min-h-screen bg-gradient-to-br from-purple-900 to-indigo-800 p-4">
+          {/* <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
             <div className="flex justify-between items-center">
-              <h1 className="text-2xl font-bold">Room: {gameState.roomId}</h1>
+              <h1 className="text-2xl text-black font-bold">
+                Room: {gameState.roomId}
+              </h1>
               <button
                 onClick={() => {
                   clearAllStorage();
-                  setCurrentPageState('menu');
+                  setCurrentPageState("menu");
                   setGameState(null);
                   setWaitingStatus(null);
                   setMessages([]);
@@ -270,7 +447,7 @@ const MonopolyGame: React.FC = () => {
                 Leave Game
               </button>
             </div>
-          </div>
+          </div> */}
 
           {/* Error Display */}
           {error && (
@@ -280,145 +457,332 @@ const MonopolyGame: React.FC = () => {
           )}
 
           {/* Waiting Status */}
-          {waitingStatus && !gameState.gameStarted && (
-            <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-              Waiting for players... ({waitingStatus.currentPlayers}/{waitingStatus.maxPlayers})
-              {currentPlayer?.isLeader && waitingStatus.currentPlayers >= 2 && (
-                <button
-                  onClick={startGame}
-                  className="ml-4 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700"
-                >
-                  Start Game
-                </button>
-              )}
-              <button
-                onClick={requestGameState}
-                className="ml-2 bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 text-sm"
-              >
-                Refresh
-              </button>
-            </div>
-          )}
 
-        <div className=" mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Board */}
-          <Card className="lg:col-span-2 p-0">
-            <CardHeader className="bg-emerald-600 text-white p-4 rounded-t-lg flex justify-between">
-              <span>Room {gameState.roomId}</span>
-              <Button size="sm" variant="ghost" onClick={() => { clearAllStorage(); setCurrentPageState('menu'); }}>
-                Exit
-              </Button>
-            </CardHeader>
-            <CardContent className="bg-green-50 p-2">
-              <div className="grid grid-cols-8 gap-2">
-                {gameState.boardSpaces.map((s, i) => (
-                  <div
-                    key={i}
-                    className={`
-                      border p-1 text-xs text-center flex flex-col justify-center items-centers size-24
-                      ${s.ownedBy ? 'bg-emerald-200' : 'bg-gray-100'}
-                      ${gameState.players.some(p => p.position === i) ? 'ring-4 ring-red-500' : ''}
-                    `}
-                  >
-                    <div className="truncate font-semibold">{s.name}</div>
-                    {s.price && <div className="text-green-700 text-sm">${s.price}</div>}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 text-center space-y-4">
-                {gameState.lastDiceRoll && (
-                  <p className="text-lg text-white">
-                    Rolled: {gameState.lastDiceRoll.dice1} + {gameState.lastDiceRoll.dice2}
-                  </p>
-                )}
-                {myTurn ? (
-                  currentPlayer?.hasRolled ? (
-                    <Button size="lg" onClick={endTurn}>
-                      End Turn
-                    </Button>
-                  ) : (
-                    <Button size="lg" variant="destructive" onClick={rollDice}>
-                      Roll 🎲
-                    </Button>
-                  )
-                ) : (
-                  <p className="text-gray-200">
-                    {gameState.players[gameState.currentPlayerIndex]?.name}’s turn
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-  
-          {/* Sidebar */}
-          <div className="space-y-6">
-        
-            <Card>
-              <CardHeader>
-                <CardTitle>Players</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {gameState.players.map((p, idx) => (
-                    <div
-                      key={p.id}
-                      className={`
-                        p-3 rounded-lg border
-                        ${idx === gameState.currentPlayerIndex ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200 bg-white'}
-                        ${p.uuid === playerUUID ? 'ring-2 ring-blue-400' : ''}
-                      `}
-                    >
-                      <p className="font-semibold">
-                        {p.name} {p.isLeader && '👑'}
-                      </p>
-                      <p className="text-sm">${p.money} | Pos: {p.position}</p>
+          <div className=" mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Board */}
+
+            <Card className="lg:col-span-2 p-0">
+              {/* <CardHeader className="bg-emerald-600 text-white p-4 rounded-t-lg flex justify-between">
+                <span>Room {gameState.roomId}</span>
+              </CardHeader> */}
+              <CardContent className="p-2 bg-transparent border-0 rounded-lg">
+                <div
+                  ref={containerRef}
+                  className="relative w-full aspect-square bg-gray-900 rounded-lg overflow-hidden max-h-[85vh]"
+                >
+                  {/* Game board */}
+                  <div className="absolute inset-0 grid grid-cols-11 grid-rows-11 gap-1 p-4">
+                    {/* Corner spaces */}
+                    <div className="col-start-1 col-span-1 row-start-11 row-span-1">
+                      <BoardSpace space={gameState.boardSpaces[30]} />{" "}
+                      {/* GO TO PRISON */}
                     </div>
+                    <div className="col-start-11 col-span-1 row-start-11 row-span-1">
+                      <BoardSpace space={gameState.boardSpaces[20]} />{" "}
+                      {/* VACATION */}
+                    </div>
+                    <div className="col-start-11 col-span-1 row-start-1 row-span-1">
+                      <BoardSpace space={gameState.boardSpaces[10]} />{" "}
+                      {/* IN PRISON */}
+                    </div>
+                    <div className="col-start-1 col-span-1 row-start-1 row-span-1">
+                      <BoardSpace space={gameState.boardSpaces[0]} />{" "}
+                      {/* Start */}
+                    </div>
+
+                    {gameState.boardSpaces
+                      .slice(1, 10)
+                      .reverse()
+                      .map((space, index) => (
+                        <div
+                          key={space.id}
+                          className="row-start-1 col-span-1 bg-blue-900 rounded-lg flex items-center justify-center"
+                          style={{ gridColumn: `${9 - index + 1}` }}
+                        >
+                          <BoardSpace space={space} />
+                        </div>
+                      ))}
+
+                    {/* Right column */}
+                    {gameState.boardSpaces
+                      .slice(11, 20)
+                      .reverse()
+                      .map((space, index) => (
+                        <div
+                          key={space.id}
+                          className="col-start-11 row-span-1 bg-blue-900 rounded-lg flex items-center justify-center"
+                          style={{ gridRow: `${10 - index}` }}
+                        >
+                          <BoardSpace space={space} />
+                        </div>
+                      ))}
+
+                    {/* Top row */}
+                    {gameState.boardSpaces
+                      .slice(21, 30)
+                      .reverse()
+                      .map((space, index) => (
+                        <div
+                          key={space.id}
+                          className="row-start-11 col-span-1 bg-blue-900 rounded-lg flex items-center justify-center"
+                          style={{ gridColumn: `${index + 2}` }}
+                        >
+                          <BoardSpace space={space} />
+                        </div>
+                      ))}
+
+                    {/* Left column */}
+                    {gameState.boardSpaces
+                      .slice(31, 40)
+                      .reverse()
+                      .map((space, index) => (
+                        <div
+                          key={space.id}
+                          className="col-start-1 row-span-1 bg-blue-900 rounded-lg flex items-center justify-center"
+                          style={{ gridRow: `${index + 2}` }}
+                        >
+                          <BoardSpace space={space} />
+                        </div>
+                      ))}
+
+                    {/* Center area with dice and game info */}
+                    <div className="col-start-3 col-span-7 row-start-3 row-span-7 rounded-lg flex flex-col items-center justify-center">
+                      {/* Game logo */}
+                      <h1 className="text-4xl font-bold text-yellow-400 mb-8">
+                        TRAVEL MONOPOLY
+                      </h1>
+
+                      {/* Dice */}
+                      <div className="flex space-x-4 mb-8">
+                        {gameState.lastDiceRoll?.dice1 && (
+                          <Dice
+                            value={gameState.lastDiceRoll.dice1}
+                            isRolling={isRolling}
+                          />
+                        )}
+                        {gameState.lastDiceRoll?.dice2 && (
+                          <Dice
+                            value={gameState.lastDiceRoll.dice2}
+                            isRolling={isRolling}
+                          />
+                        )}
+                      </div>
+
+                      {/* Game message */}
+                      {!gameState.gameStarted &&
+                        currentPlayer?.isLeader === true && (
+                          <Button
+                            className="cursor-pointer"
+                            disabled={gameState.players.length < 2}
+                            onClick={() => {
+                              startGame();
+                            }}
+                          >
+                            Start Game
+                          </Button>
+                        )}
+
+                      {/* Current player info */}
+                      {gameState.gameStarted && (
+                        <div className="text-white mb-6">
+                          {gameState.players[gameState.currentPlayerIndex] && (
+                            <div className="flex items-center">
+                              <div
+                                className="w-4 h-4 rounded-full mr-2"
+                                style={{
+                                  backgroundColor:
+                                    gameState.players[
+                                      gameState.currentPlayerIndex
+                                    ].color,
+                                }}
+                              ></div>
+                              <span>
+                                {
+                                  gameState.players[
+                                    gameState.currentPlayerIndex
+                                  ].name
+                                }
+                                &apos;s turn
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
+                      {gameState.gameStarted && (
+                        <div className="mt-2 text-center space-y-4">
+                          {myTurn ? (
+                            currentPlayer?.hasRolled ? (
+                              <div className="flex gap-2">
+                                {availableProperty &&
+                                  availableProperty.playerId ===
+                                    currentPlayer?.id && (
+                                    <Button
+                                      className="cursor-pointer"
+                                      onClick={() => {
+                                        buyProperty();
+                                        // handleBuy();
+                                      }}
+                                    >
+                                      Buy for $
+                                      {
+                                        gameState.boardSpaces[
+                                          gameState.players[
+                                            gameState.currentPlayerIndex
+                                          ].position
+                                        ].price
+                                      }
+                                    </Button>
+                                  )}
+                                <Button size="lg" onClick={endTurn}>
+                                  End Turn
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="lg"
+                                  variant="destructive"
+                                  onClick={rollDice}
+                                >
+                                  Roll 🎲
+                                </Button>
+                              </div>
+                            )
+                          ) : (
+                            <p className="text-gray-200"></p>
+                          )}
+                        </div>
+                      )}
+                      <ScrollArea className="h-48 p-4">
+                        <div className="space-y-1">
+                          {[...messages].reverse().map((msg, i) => (
+                            <p key={i} className="text-sm text-white">
+                              {msg}
+                            </p>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </div>
+
+                  {/* Player pieces */}
+                  {gameState.players.map((player) => (
+                    <PlayerPiece
+                      key={player.id}
+                      player={player}
+                      spaces={gameState.boardSpaces}
+                      isCurrentPlayer={false}
+                      hasRolled={false}
+                      containerRef={containerRef}
+                      onEndTurn={function (): void {
+                        throw new Error("Function not implemented.");
+                      }}
+                    />
                   ))}
+                  {/* Overlay when game is full */}
                 </div>
               </CardContent>
             </Card>
-  
-            {availableProperty && availableProperty.playerId === currentPlayer?.id && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Buy Offer</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p>Price: ${availableProperty.price}</p>
-                  <div className="flex space-x-2">
-                    <Button onClick={buyProperty}>Buy</Button>
-                    <Button variant="ghost" onClick={() => setAvailableProperty(null)}>
-                      Skip
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-  
-            <Card className="h-64">
-              <CardHeader>
-                <CardTitle>Game Log</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <ScrollArea className="h-48 p-4">
-                  <div className="space-y-1">
-                    {messages.map((msg, i) => (
-                      <p key={i} className="text-sm">
-                        {msg}
-                      </p>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
+
+            {/* Sidebar */}
+            <div className="">
+              <div className="flex justify-between items-center">
+                <h1 className="text-2xl text-black font-bold">
+                  Room: {gameState.roomId}
+                </h1>
+                <button
+                  onClick={() => {
+                    clearAllStorage();
+                    setCurrentPageState("menu");
+                    setGameState(null);
+                    setWaitingStatus(null);
+                    setMessages([]);
+                  }}
+                  className="bg-red-700 text-white px-4 py-2 rounded-md hover:bg-gray-700"
+                >
+                  Leave Game
+                </button>
+              </div>
+              <AllPlayersInfo
+                players={gameState.players}
+               currentPlayer={currentPlayer}
+                gameStarted={gameState.gameStarted}
+                gameState={gameState}
+                playerUUID={playerUUID}
+                setCurrentPageState={setCurrentPageState}
+                kickPlayer={kickPlayer}
+              />
+              {gameState.gameStarted && (
+                <div className="flex justify-between pl-4 pr-4 mb-4">
+                  <Button className="cursor-pointer">Votekick</Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="cursor-pointer">
+                        Bankrupt
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Are you absolutely sure?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. You will loose all your
+                          properties and all the money you have and will loose
+                          the game
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="cursor-pointer">
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          className="cursor-pointer bg-red-500 hover:bg-red-600"
+                          // onClick={handleBankrupt}
+                        >
+                          Confirm
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              )}
+              {gameState.gameStarted && (
+                <TradeDashboard
+                  players={gameState?.players ?? []}
+                  selfUserId={"2"}
+                  setPlayers={setplayers}
+                />
+              )}
+              {gameState.settings && !gameState.gameStarted && (
+                <GameSettings
+                  gameState={gameState}
+                  currentPlayer={currentPlayer}
+                  updateSettings={updateSettings}
+                  setRoomSettings={setRoomSettings}
+                  roomSettings={roomSettings}
+                />
+              )}
+              {!gameState.gameStarted ? (
+                <GamePlaySettings />
+              ) : (
+                <UserProperties
+                  players={gameState.players}
+                  currentPlayerIndex={gameState.players.findIndex(
+                    (item) => item?.uuid === currentPlayer?.uuid
+                  )}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
     );
   };
-  
 
-  return currentPageState === 'menu' ? renderMenuPage() : renderGamePage();
+  return currentPageState === "menu" ? renderMenuPage() : renderGamePage();
 };
 
 export default MonopolyGame;

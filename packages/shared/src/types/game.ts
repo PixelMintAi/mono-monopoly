@@ -79,6 +79,7 @@ export type SocketEvents = {
   playerLeft: { playerId: string };
   startGame: { roomId: string };
   gameStarted: { players: Player[]; currentPlayerIndex: number };
+  kickPlayer:{roomId:string;targetPlayerId:string};
   
   // Game events
   gameStateUpdated: { players: Player[]; currentPlayerIndex: number };
