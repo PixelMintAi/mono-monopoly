@@ -43,11 +43,11 @@ const AllPlayersInfo = ({
                   className={`h-4 w-4 rounded-4xl`}
                   style={{ backgroundColor: player.color }}
                 ></div>
-                <div>
+                <div className={player.bankRupt?"text-gray-400":"text-white"}>
                   {player.name} {player.isLeader && "👑"}
                 </div>
               </div>
-              {currentPlayer?.isLeader && player.id!==currentPlayer.id &&
+              {currentPlayer?.isLeader && player.id!==currentPlayer.id && !gameStarted &&
               <Button
                 size="sm"
                 className="cursor-pointer"
@@ -57,31 +57,10 @@ const AllPlayersInfo = ({
               >
                 Kick
               </Button>
-
               }
-              {playerUUID ===player.uuid && !gameState.gameStarted &&<Button
-                size="sm"
-                className="cursor-pointer bg-red-600  hover:bg-red-800"
-                onClick={() => {
-                  clearAllStorage();
-                  setCurrentPageState("menu");
-                }}
-              >
-                Exit
-              </Button>}
               {gameStarted && (
-                <div className="flex gap-[0.5rem] items-center cursor-pointer p-1 rounded">
-                  ${player.money}
-                                {playerUUID ===player.uuid &&<Button
-                size="sm"
-                className="cursor-pointer bg-red-600  hover:bg-red-800"
-                onClick={() => {
-                  clearAllStorage();
-                  setCurrentPageState("menu");
-                }}
-              >
-                Exit
-              </Button>}
+                <div className={player.bankRupt?"text-gray-400":"text-white"}>
+                  ${player.money}                              
                 </div>
               )}
             </div>

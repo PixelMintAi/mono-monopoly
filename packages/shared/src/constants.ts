@@ -8,6 +8,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "top-left",
     price: 0,
     ownedBy: null,
+    rent: null,
   },
   {
     id: "salvador",
@@ -17,6 +18,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 60,
     country: "brazil",
     ownedBy: null,
+    rent: 6,
   },
   {
     id: "treasure1",
@@ -25,6 +27,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "top",
     price: 0,
     ownedBy: null,
+    rent: null,
   },
   {
     id: "rio",
@@ -34,6 +37,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 60,
     country: "brazil",
     ownedBy: null,
+    rent: 6,
   },
   {
     id: "income-tax",
@@ -42,6 +46,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "top",
     price: 200,
     ownedBy: null,
+    rent: null,
   },
   {
     id: "tlv-airport",
@@ -50,6 +55,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "top",
     price: 200,
     ownedBy: null,
+    rent: 25,
   },
   {
     id: "tel-aviv",
@@ -59,6 +65,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 100,
     country: "israel",
     ownedBy: null,
+    rent: 10,
   },
   {
     id: "surprise1",
@@ -67,6 +74,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "top",
     price: 0,
     ownedBy: null,
+    rent: null,
   },
   {
     id: "haifa",
@@ -76,6 +84,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 100,
     country: "israel",
     ownedBy: null,
+    rent: 10,
   },
   {
     id: "jerusalem",
@@ -85,6 +94,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 120,
     country: "israel",
     ownedBy: null,
+    rent: 12,
   },
   {
     id: "prison",
@@ -93,9 +103,9 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "top-right",
     price: 0,
     ownedBy: null,
+    rent: null,
   },
 
-  // Right side
   {
     id: "venice",
     type: "city",
@@ -104,6 +114,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 140,
     country: "hungary",
     ownedBy: null,
+    rent: 14,
   },
   {
     id: "electric-company",
@@ -112,6 +123,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "right",
     price: 150,
     ownedBy: null,
+    rent: 20,
   },
   {
     id: "milan",
@@ -121,6 +133,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 140,
     country: "hungary",
     ownedBy: null,
+    rent: 14,
   },
   {
     id: "rome",
@@ -130,6 +143,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 160,
     country: "hungary",
     ownedBy: null,
+    rent: 18,
   },
   {
     id: "muc-airport",
@@ -138,6 +152,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "right",
     price: 200,
     ownedBy: null,
+    rent: 25,
   },
   {
     id: "frankfurt",
@@ -147,6 +162,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 180,
     country: "germany",
     ownedBy: null,
+    rent: 20,
   },
   {
     id: "treasure2",
@@ -155,6 +171,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "right",
     price: 0,
     ownedBy: null,
+    rent: null,
   },
   {
     id: "munich",
@@ -164,6 +181,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 180,
     country: "germany",
     ownedBy: null,
+    rent: 22,
   },
   {
     id: "berlin",
@@ -173,9 +191,9 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 200,
     country: "germany",
     ownedBy: null,
+    rent: 26,
   },
 
-  // Bottom row
   {
     id: "vacation",
     type: "special",
@@ -183,6 +201,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "bottom-right",
     price: 0,
     ownedBy: null,
+    rent: null,
   },
   {
     id: "paris",
@@ -192,6 +211,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 220,
     country: "france",
     ownedBy: null,
+    rent: 28,
   },
   {
     id: "water-company",
@@ -200,6 +220,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "bottom",
     price: 150,
     ownedBy: null,
+    rent: 20,
   },
   {
     id: "toulouse",
@@ -209,6 +230,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 220,
     country: "france",
     ownedBy: null,
+    rent: 28,
   },
   {
     id: "lyon",
@@ -218,6 +240,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 240,
     country: "france",
     ownedBy: null,
+    rent: 30,
   },
   {
     id: "cdg-airport",
@@ -226,6 +249,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "bottom",
     price: 200,
     ownedBy: null,
+    rent: 25,
   },
   {
     id: "shanghai",
@@ -235,6 +259,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 260,
     country: "china",
     ownedBy: null,
+    rent: 32,
   },
   {
     id: "beijing",
@@ -244,6 +269,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 260,
     country: "china",
     ownedBy: null,
+    rent: 34,
   },
   {
     id: "surprise2",
@@ -252,6 +278,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "bottom",
     price: 0,
     ownedBy: null,
+    rent: null,
   },
   {
     id: "shenzhen",
@@ -261,9 +288,9 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 280,
     country: "china",
     ownedBy: null,
+    rent: 36,
   },
 
-  // Left side
   {
     id: "prison",
     type: "special",
@@ -271,6 +298,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "bottom-left",
     price: 0,
     ownedBy: null,
+    rent: null,
   },
   {
     id: "london",
@@ -280,6 +308,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 300,
     country: "uk",
     ownedBy: null,
+    rent: 38,
   },
   {
     id: "treasure3",
@@ -288,6 +317,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "left",
     price: 0,
     ownedBy: null,
+    rent: null,
   },
   {
     id: "manchester",
@@ -297,6 +327,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 300,
     country: "uk",
     ownedBy: null,
+    rent: 40,
   },
   {
     id: "liverpool",
@@ -306,6 +337,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 320,
     country: "uk",
     ownedBy: null,
+    rent: 44,
   },
   {
     id: "jfk-airport",
@@ -314,6 +346,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "left",
     price: 200,
     ownedBy: null,
+    rent: 25,
   },
   {
     id: "san-francisco",
@@ -323,6 +356,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 350,
     country: "usa",
     ownedBy: null,
+    rent: 50,
   },
   {
     id: "surprise3",
@@ -331,6 +365,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "left",
     price: 0,
     ownedBy: null,
+    rent: null,
   },
   {
     id: "new-york",
@@ -340,6 +375,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 400,
     country: "usa",
     ownedBy: null,
+    rent: 100,
   },
   {
     id: "luxury-tax",
@@ -348,5 +384,32 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     position: "left",
     price: 100,
     ownedBy: null,
+    rent: null,
   },
-]; 
+];
+
+
+export const surpriseCards:string[] = [
+  "Advance to Start (Collect $200)",
+  "Go to Jail",
+  "Go back 3 spaces",
+  "Bank pays you dividend of $50",
+  "Pay tax of $45",
+  "Take a trip to Rome",
+  "Advance to New York",
+  "Your building loan matures — collect $150",
+  "Get out of Jail Free"
+];
+export const treasureCards:string[] = [
+  "Bank error in your favor — collect $200",
+  "Doctor's fees — Pay $50",
+  "From sale of stock you get $50",
+  "Get out of Jail Free",
+  "Go to Jail",
+  "Grand Opera Night — collect $50 from every player",
+  "Holiday Fund matures — receive $100",
+  "Income tax refund — collect $20",
+  "Life insurance matures — collect $100",
+  "Pay hospital fees of $100",
+  "You inherit $100"
+];

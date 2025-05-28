@@ -84,6 +84,7 @@ const MonopolyGame: React.FC = () => {
   const [gameState, setGameState] = useState<GameState | null>(() => {
     return loadFromStorage("gameState", null);
   });
+
   const [waitingStatus, setWaitingStatus] = useState<any>(() => {
     return loadFromStorage("waitingStatus", null);
   });
@@ -197,6 +198,14 @@ const MonopolyGame: React.FC = () => {
     })
   }
 
+  const handleBankrupcy=(playerId:string)=>{
+    if (!socket || !gameState) return;
+        socket.emit('playerBankrupt',{
+      roomId: gameState.roomId,
+      targetPlayerId:playerId
+    })
+  }
+
   const endTurn = () => {
     if (!socket || !gameState) return;
     socket.emit("endTurn", { roomId: gameState.roomId });
@@ -279,7 +288,7 @@ const MonopolyGame: React.FC = () => {
                       onValueChange={(value) => {
                         setRoomSettings((s: any) => ({
                           ...s,
-                          maxPlayers: value,
+                          maxPlayers: Number(value),
                         }));
                       }}
                     >
@@ -304,7 +313,7 @@ const MonopolyGame: React.FC = () => {
                       onValueChange={(value) => {
                         setRoomSettings((s: any) => ({
                           ...s,
-                          startingAmount: value,
+                          startingAmount: Number(value),
                         }));
                       }}
                     >
@@ -425,29 +434,12 @@ const MonopolyGame: React.FC = () => {
     const currentPlayer = getCurrentPlayer();
     const myTurn = isCurrentPlayerTurn();
 
+    console.log(currentPlayer,'current player')
+
     return (
       <div>
         <Navbar />
         <div className=" pt-[5rem] min-h-screen bg-gradient-to-br from-purple-900 to-indigo-800 p-4">
-          {/* <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
-            <div className="flex justify-between items-center">
-              <h1 className="text-2xl text-black font-bold">
-                Room: {gameState.roomId}
-              </h1>
-              <button
-                onClick={() => {
-                  clearAllStorage();
-                  setCurrentPageState("menu");
-                  setGameState(null);
-                  setWaitingStatus(null);
-                  setMessages([]);
-                }}
-                className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
-              >
-                Leave Game
-              </button>
-            </div>
-          </div> */}
 
           {/* Error Display */}
           {error && (
@@ -615,7 +607,7 @@ const MonopolyGame: React.FC = () => {
                           {myTurn ? (
                             currentPlayer?.hasRolled ? (
                               <div className="flex gap-2">
-                                {availableProperty &&
+                                {availableProperty && gameState.players[gameState.currentPlayerIndex].money>=gameState.boardSpaces[gameState.players[gameState.currentPlayerIndex].position].price &&
                                   availableProperty.playerId ===
                                     currentPlayer?.id && (
                                     <Button
@@ -716,7 +708,7 @@ const MonopolyGame: React.FC = () => {
               />
               {gameState.gameStarted && (
                 <div className="flex justify-between pl-4 pr-4 mb-4">
-                  <Button className="cursor-pointer">Votekick</Button>
+                  <Button className="cursor-pointer" disabled={true}>Votekick</Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" className="cursor-pointer">
@@ -740,7 +732,11 @@ const MonopolyGame: React.FC = () => {
                         </AlertDialogCancel>
                         <AlertDialogAction
                           className="cursor-pointer bg-red-500 hover:bg-red-600"
-                          // onClick={handleBankrupt}
+                          onClick={()=>{
+                            if(currentPlayer){
+                              handleBankrupcy(currentPlayer.id)
+                            }
+                          }}
                         >
                           Confirm
                         </AlertDialogAction>
@@ -751,9 +747,10 @@ const MonopolyGame: React.FC = () => {
               )}
               {gameState.gameStarted && (
                 <TradeDashboard
-                  players={gameState?.players ?? []}
-                  selfUserId={"2"}
-                  setPlayers={setplayers}
+                  players={gameState?.players}
+                  selfUserId={currentPlayer?.id ??""}
+                  socket={socket}
+                  roomId={gameState.roomId}
                 />
               )}
               {gameState.settings && !gameState.gameStarted && (

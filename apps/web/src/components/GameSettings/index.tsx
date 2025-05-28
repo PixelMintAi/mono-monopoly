@@ -57,7 +57,7 @@ const GameSettings = ({
               onValueChange={(value) => {
                 setRoomSettings((s: any) => ({
                   ...s,
-                  maxPlayers: value,
+                  maxPlayers: Number(value),
                 }));
               }}
             >
@@ -91,7 +91,7 @@ const GameSettings = ({
               onValueChange={(value) => {
                 setRoomSettings((s: any) => ({
                   ...s,
-                  startingAmount: value,
+                  startingAmount: Number(value),
                 }));
               }}
             >

@@ -5,7 +5,7 @@ export const SpaceSchema = z.object({
   name: z.string(),
   type: z.enum(['city', 'airport', 'utility', 'tax', 'chance', 'community', 'corner','treasure','special','community','surprise']),
   price: z.number().optional(),
-  rent: z.number().optional(),
+  rent: z.number().nullable(),
   ownedBy: z.any().nullable(),
   country:z.string().optional(),
   position: z.string(),
@@ -41,6 +41,21 @@ export const PlayerSchema = z.object({
 
 export type Player = z.infer<typeof PlayerSchema>;
 
+export const TradeSchema=z.object({
+  id:z.string(),
+  fromPlayerId:z.string(),
+  toPlayerId:z.string(),
+  moneyOffered:z.number(),
+  moneyRequested:z.number(),
+  propertiesOffered:z.array(z.string()),
+  propertiesRequested:z.array(z.string()),
+   status:z.enum([ 'pending',  'accepted',  'rejected']),
+   createdAt:z.date()
+})
+
+export type Trade=z.infer<typeof TradeSchema>;
+
+
 export const RoomSchema = z.object({
   id: z.string(),
   settings: z.object({
@@ -55,7 +70,8 @@ export const RoomSchema = z.object({
     dice1: z.number(),
     dice2: z.number(),
     playerId: z.string()
-  }).nullable()
+  }).nullable(),
+  activeTrades:z.array(TradeSchema)
 });
 
 export type Room = z.infer<typeof RoomSchema>;
@@ -80,7 +96,11 @@ export type SocketEvents = {
   startGame: { roomId: string };
   gameStarted: { players: Player[]; currentPlayerIndex: number };
   kickPlayer:{roomId:string;targetPlayerId:string};
-  
+  playerBankrupt:{roomId:string;targetPlayerId:string};
+  createTrade:{roomId:string;toPlayerId:string;moneyOffered:number;moneyRequested:number;propertiesOffered:string[];propertiesRequested:string[]}
+  acceptTrade:{roomId:string;tradeId:string};
+  rejectTrade:{roomId:string;tradeId:string};
+  requestTrades:{roomId:string}
   // Game events
   gameStateUpdated: { players: Player[]; currentPlayerIndex: number };
   playerMove: { roomId: string; playerId: string; newPosition: number };

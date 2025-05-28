@@ -135,6 +135,18 @@ export const setupSocketHandlers = (
       });
   });
 
+    socket.on("bankrupt", ({ playerId }) => {
+      console.log('entered')
+      setMessages((prev) => {
+        const newMessages = [
+          ...prev,
+          `Player ${playerId} has gone bankrupt.`,
+        ];
+        saveToStorage("messages", newMessages);
+        return newMessages;
+      });
+  });
+
   socket.on("settingsUpdated", ({ settings }) => {
     setMessages((prev) => {
       const newMessages = [...prev, "Room settings updated"];
