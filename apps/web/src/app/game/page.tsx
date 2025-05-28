@@ -182,13 +182,21 @@ const MonopolyGame: React.FC = () => {
     });
   };
 
-  const buyProperty = () => {
-    if (!socket || !gameState || !availableProperty) return;
+  const buyProperty = (propertyId:string) => {
+    if (!socket || !gameState) return;
     socket.emit("buyProperty", {
       roomId: gameState.roomId,
-      propertyId: availableProperty.propertyId,
+      propertyId: propertyId,
     });
   };
+
+  const sellProperty=(propertyId:string)=>{
+    if (!socket || !gameState) return;
+        socket.emit("sellProperty", {
+      roomId: gameState.roomId,
+      propertyId: propertyId,
+    });
+  }
 
   const kickPlayer=(playerId:string)=>{
     if (!socket || !gameState) return;
@@ -607,13 +615,12 @@ const MonopolyGame: React.FC = () => {
                           {myTurn ? (
                             currentPlayer?.hasRolled ? (
                               <div className="flex gap-2">
-                                {availableProperty && gameState.players[gameState.currentPlayerIndex].money>=gameState.boardSpaces[gameState.players[gameState.currentPlayerIndex].position].price &&
-                                  availableProperty.playerId ===
-                                    currentPlayer?.id && (
+                                {gameState.boardSpaces[gameState.players[gameState.currentPlayerIndex].position].ownedBy===null &&gameState.boardSpaces[gameState.players[gameState.currentPlayerIndex].position].price!==0 && gameState.players[gameState.currentPlayerIndex].money>=gameState.boardSpaces[gameState.players[gameState.currentPlayerIndex].position].price &&
+                                    (
                                     <Button
                                       className="cursor-pointer"
                                       onClick={() => {
-                                        buyProperty();
+                                        buyProperty(gameState.boardSpaces[gameState.players[gameState.currentPlayerIndex].position].id);
                                         // handleBuy();
                                       }}
                                     >
@@ -770,6 +777,7 @@ const MonopolyGame: React.FC = () => {
                   currentPlayerIndex={gameState.players.findIndex(
                     (item) => item?.uuid === currentPlayer?.uuid
                   )}
+                  sellProperty={sellProperty}
                 />
               )}
             </div>

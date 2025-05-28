@@ -1,13 +1,15 @@
 import { Player } from '@/types/game'
 import React from 'react'
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from '../ui/button';
 
 interface UserPropertiesProps {
   players: Player[]
-  currentPlayerIndex: number
+  currentPlayerIndex: number;
+  sellProperty:any
 }
 
-const UserProperties = ({ players, currentPlayerIndex }: UserPropertiesProps) => {
+const UserProperties = ({ players, currentPlayerIndex,sellProperty }: UserPropertiesProps) => {
   // Guard clause for invalid states
   if (!players?.length) {
     return (
@@ -41,8 +43,13 @@ const UserProperties = ({ players, currentPlayerIndex }: UserPropertiesProps) =>
         </div>
         <div className='mb-4'>
           {currentPlayer.properties?.map((property, index) => (
-            <div className='p-2' key={`${property.name}-${index}`}>
+            <div className='p-2 flex w-full' key={`${property.name}-${index}`}>
               {property.name}
+              <Button onClick={()=>{
+                sellProperty(property.id)
+              }}>
+                Sell
+              </Button>
             </div>
           )) ?? (
             <div className="text-center text-muted-foreground">No properties owned</div>

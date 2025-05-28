@@ -412,6 +412,39 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
         console.log(`Player ${current.name} bought ${property.name}`);
       }
     );
+    socket.on(
+  "sellProperty",
+  ({ roomId, propertyId }: SocketEvents["sellProperty"]) => {
+    const room = rooms.get(roomId);
+    if (!room) return socket.emit("error", "Room not found");
+
+    const current = room.players[room.currentPlayerIndex];
+
+    const property = room.boardSpaces.find((s) => s.id === propertyId);
+    if (!property || property.ownedBy !== current.id) {
+      return socket.emit("error", "Not your turn");
+    }
+    if (typeof property.price !== "number") {
+      return socket.emit("error", "Property price is invalid");
+    }
+
+    // Remove ownership
+    property.ownedBy = null;
+    current.money += property.price;
+
+    // Remove from player's property list
+    current.properties = current.properties.filter((p) => p.id !== propertyId);
+
+    io.to(roomId).emit("propertySold", {
+      playerId: current.id,
+      propertyId: property.id,
+    });
+    broadcastGameState(io, room);
+    console.log(`Player ${current.name} sold ${property.name}`);
+  }
+);
+
+
 
     // End the current turn
     socket.on("endTurn", ({ roomId }: SocketEvents["endTurn"]) => {

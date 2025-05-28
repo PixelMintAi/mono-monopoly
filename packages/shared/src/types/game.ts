@@ -111,6 +111,7 @@ export type SocketEvents = {
   rollDice: { roomId: string };
   endTurn: { roomId: string };
   buyProperty: { roomId: string; propertyId: string };
+  sellProperty:{roomId:string;propertyId:string};
   updateSettings: { roomId: string; settings: GameSettings };
   
   // Error events

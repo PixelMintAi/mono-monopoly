@@ -96,6 +96,15 @@ export const setupSocketHandlers = (
     setAvailableProperty(null);
   });
 
+  socket.on("propertySold", (data) => {
+    setMessages((prev) => {
+      const newMessages = [...prev, `Property sold by player ${data.playerId}`];
+      saveToStorage("messages", newMessages);
+      return newMessages;
+    });
+    // setAvailableProperty(data);
+  });
+
   socket.on("turnChanged", (data) => {
     setMessages((prev) => {
       const newMessages = [
@@ -125,26 +134,23 @@ export const setupSocketHandlers = (
 
   socket.on("kickPlayer", ({ playerId }) => {
     // Notify user about being kicked (if it's this player)
-      setMessages((prev) => {
-        const newMessages = [
-          ...prev,
-          `Player ${playerId} was kicked from the game.`,
-        ];
-        saveToStorage("messages", newMessages);
-        return newMessages;
-      });
+    setMessages((prev) => {
+      const newMessages = [
+        ...prev,
+        `Player ${playerId} was kicked from the game.`,
+      ];
+      saveToStorage("messages", newMessages);
+      return newMessages;
+    });
   });
 
-    socket.on("bankrupt", ({ playerId }) => {
-      console.log('entered')
-      setMessages((prev) => {
-        const newMessages = [
-          ...prev,
-          `Player ${playerId} has gone bankrupt.`,
-        ];
-        saveToStorage("messages", newMessages);
-        return newMessages;
-      });
+  socket.on("bankrupt", ({ playerId }) => {
+    console.log("entered");
+    setMessages((prev) => {
+      const newMessages = [...prev, `Player ${playerId} has gone bankrupt.`];
+      saveToStorage("messages", newMessages);
+      return newMessages;
+    });
   });
 
   socket.on("settingsUpdated", ({ settings }) => {
