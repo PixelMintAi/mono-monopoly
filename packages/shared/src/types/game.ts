@@ -9,6 +9,7 @@ export const SpaceSchema = z.object({
   ownedBy: z.any().nullable(),
   country:z.string().optional(),
   position: z.string(),
+  isMortgaged:z.boolean()
 });
 
 export type Space = z.infer<typeof SpaceSchema>;
@@ -113,6 +114,8 @@ export type SocketEvents = {
   buyProperty: { roomId: string; propertyId: string };
   sellProperty:{roomId:string;propertyId:string};
   updateSettings: { roomId: string; settings: GameSettings };
+  mortageProperty:{roomId:string;propertyId:string};
+  getBackMortagedProperty:{roomId:string;propertyId:string};
   
   // Error events
   error: string | Error | { message: string };

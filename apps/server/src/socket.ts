@@ -231,7 +231,7 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
       room.gameStarted = true;
       room.currentPlayerIndex = 0;
       room.players.forEach((p) => (p.hasRolled = false));
-       room.players.forEach((p) => (p.money = room.settings.startingAmount));
+      room.players.forEach((p) => (p.money = room.settings.startingAmount));
 
       io.to(roomId).emit("gameStarted", {
         roomId,
@@ -349,17 +349,17 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
             propertyId: currentSpace.id,
             price: currentSpace.price,
           });
-        } else if (currentSpace.ownedBy !== player.id) {
+        } else if (currentSpace.ownedBy !== player.id && !currentSpace.isMortgaged) {
           const rent = currentSpace.rent ?? 0;
-           const Owner = room.players.find((p) => p.id === currentSpace.ownedBy);
-           if(Owner){
-             Owner.money+=rent;
-              player.money -= rent;
-              io.to(roomId).emit(
-                "gameMessage",
-                `${player.name} paid $${rent} in rent to ${Owner.name}`
-              );
-           }
+          const Owner = room.players.find((p) => p.id === currentSpace.ownedBy);
+          if (Owner) {
+            Owner.money += rent;
+            player.money -= rent;
+            io.to(roomId).emit(
+              "gameMessage",
+              `${player.name} paid $${rent} in rent to ${Owner.name}`
+            );
+          }
           // currentSpace.ownedBy.money += rent;
         }
       } else {
@@ -413,8 +413,42 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
       }
     );
     socket.on(
-  "sellProperty",
-  ({ roomId, propertyId }: SocketEvents["sellProperty"]) => {
+      "sellProperty",
+      ({ roomId, propertyId }: SocketEvents["sellProperty"]) => {
+        const room = rooms.get(roomId);
+        if (!room) return socket.emit("error", "Room not found");
+
+        const current = room.players[room.currentPlayerIndex];
+
+        const property = room.boardSpaces.find((s) => s.id === propertyId);
+        if (!property || property.ownedBy !== current.id) {
+          return socket.emit("error", "Not your turn");
+        }
+        if (typeof property.price !== "number") {
+          return socket.emit("error", "Property price is invalid");
+        }
+
+        // Remove ownership
+        property.ownedBy = null;
+        current.money += property.price;
+
+        // Remove from player's property list
+        current.properties = current.properties.filter(
+          (p) => p.id !== propertyId
+        );
+
+        io.to(roomId).emit("propertySold", {
+          playerId: current.id,
+          propertyId: property.id,
+        });
+        broadcastGameState(io, room);
+        console.log(`Player ${current.name} sold ${property.name}`);
+      }
+    );
+
+        socket.on(
+  "mortageProperty",
+  ({ roomId, propertyId }: SocketEvents["mortageProperty"]) => {
     const room = rooms.get(roomId);
     if (!room) return socket.emit("error", "Room not found");
 
@@ -429,13 +463,11 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
     }
 
     // Remove ownership
-    property.ownedBy = null;
-    current.money += property.price;
+    property.isMortgaged=true
+    current.money += (0.5*property.price);
 
-    // Remove from player's property list
-    current.properties = current.properties.filter((p) => p.id !== propertyId);
 
-    io.to(roomId).emit("propertySold", {
+    io.to(roomId).emit("propertyMortaged", {
       playerId: current.id,
       propertyId: property.id,
     });
@@ -443,8 +475,34 @@ export function setupSocketHandlers(io: Server, rooms: Map<string, Room>) {
     console.log(`Player ${current.name} sold ${property.name}`);
   }
 );
+        socket.on(
+  "getBackMortagedProperty",
+  ({ roomId, propertyId }: SocketEvents["getBackMortagedProperty"]) => {
+    const room = rooms.get(roomId);
+    if (!room) return socket.emit("error", "Room not found");
+
+    const current = room.players[room.currentPlayerIndex];
+
+    const property = room.boardSpaces.find((s) => s.id === propertyId);
+    if (!property || property.ownedBy !== current.id) {
+      return socket.emit("error", "Not your turn");
+    }
+    if (typeof property.price !== "number") {
+      return socket.emit("error", "Property price is invalid");
+    }
+
+    // Remove ownership
+    property.isMortgaged=false
+    current.money -= (1.1*0.5*property.price);
 
 
+    io.to(roomId).emit("propertyRemovedFromMortaged", {
+      playerId: current.id,
+      propertyId: property.id,
+    });
+    broadcastGameState(io, room);
+  }
+);
 
     // End the current turn
     socket.on("endTurn", ({ roomId }: SocketEvents["endTurn"]) => {

@@ -9,6 +9,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 0,
     ownedBy: null,
     rent: null,
+    isMortgaged: false,
   },
   {
     id: "salvador",
@@ -19,6 +20,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "brazil",
     ownedBy: null,
     rent: 6,
+    isMortgaged: false,
   },
   {
     id: "treasure1",
@@ -28,6 +30,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 0,
     ownedBy: null,
     rent: null,
+    isMortgaged: false,
   },
   {
     id: "rio",
@@ -38,6 +41,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "brazil",
     ownedBy: null,
     rent: 6,
+    isMortgaged: false,
   },
   {
     id: "income-tax",
@@ -47,6 +51,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 200,
     ownedBy: null,
     rent: null,
+    isMortgaged: false,
   },
   {
     id: "tlv-airport",
@@ -56,6 +61,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 200,
     ownedBy: null,
     rent: 25,
+    isMortgaged: false,
   },
   {
     id: "tel-aviv",
@@ -66,6 +72,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "israel",
     ownedBy: null,
     rent: 10,
+    isMortgaged: false,
   },
   {
     id: "surprise1",
@@ -75,6 +82,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 0,
     ownedBy: null,
     rent: null,
+    isMortgaged: false,
   },
   {
     id: "haifa",
@@ -85,6 +93,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "israel",
     ownedBy: null,
     rent: 10,
+    isMortgaged: false,
   },
   {
     id: "jerusalem",
@@ -95,6 +104,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "israel",
     ownedBy: null,
     rent: 12,
+    isMortgaged: false,
   },
   {
     id: "prison",
@@ -104,8 +114,8 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 0,
     ownedBy: null,
     rent: null,
+    isMortgaged: false,
   },
-
   {
     id: "venice",
     type: "city",
@@ -115,6 +125,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "hungary",
     ownedBy: null,
     rent: 14,
+    isMortgaged: false,
   },
   {
     id: "electric-company",
@@ -124,6 +135,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 150,
     ownedBy: null,
     rent: 20,
+    isMortgaged: false,
   },
   {
     id: "milan",
@@ -134,6 +146,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "hungary",
     ownedBy: null,
     rent: 14,
+    isMortgaged: false,
   },
   {
     id: "rome",
@@ -144,6 +157,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "hungary",
     ownedBy: null,
     rent: 18,
+    isMortgaged: false,
   },
   {
     id: "muc-airport",
@@ -153,6 +167,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 200,
     ownedBy: null,
     rent: 25,
+    isMortgaged: false,
   },
   {
     id: "frankfurt",
@@ -163,6 +178,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "germany",
     ownedBy: null,
     rent: 20,
+    isMortgaged: false,
   },
   {
     id: "treasure2",
@@ -172,6 +188,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 0,
     ownedBy: null,
     rent: null,
+    isMortgaged: false,
   },
   {
     id: "munich",
@@ -182,6 +199,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "germany",
     ownedBy: null,
     rent: 22,
+    isMortgaged: false,
   },
   {
     id: "berlin",
@@ -192,8 +210,8 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "germany",
     ownedBy: null,
     rent: 26,
+    isMortgaged: false,
   },
-
   {
     id: "vacation",
     type: "special",
@@ -202,6 +220,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 0,
     ownedBy: null,
     rent: null,
+    isMortgaged: false,
   },
   {
     id: "paris",
@@ -212,6 +231,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "france",
     ownedBy: null,
     rent: 28,
+    isMortgaged: false,
   },
   {
     id: "water-company",
@@ -221,6 +241,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 150,
     ownedBy: null,
     rent: 20,
+    isMortgaged: false,
   },
   {
     id: "toulouse",
@@ -231,6 +252,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "france",
     ownedBy: null,
     rent: 28,
+    isMortgaged: false,
   },
   {
     id: "lyon",
@@ -241,6 +263,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "france",
     ownedBy: null,
     rent: 30,
+    isMortgaged: false,
   },
   {
     id: "cdg-airport",
@@ -250,6 +273,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 200,
     ownedBy: null,
     rent: 25,
+    isMortgaged: false,
   },
   {
     id: "shanghai",
@@ -260,6 +284,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "china",
     ownedBy: null,
     rent: 32,
+    isMortgaged: false,
   },
   {
     id: "beijing",
@@ -270,6 +295,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "china",
     ownedBy: null,
     rent: 34,
+    isMortgaged: false,
   },
   {
     id: "surprise2",
@@ -279,6 +305,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 0,
     ownedBy: null,
     rent: null,
+    isMortgaged: false,
   },
   {
     id: "shenzhen",
@@ -289,8 +316,8 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "china",
     ownedBy: null,
     rent: 36,
+    isMortgaged: false,
   },
-
   {
     id: "prison",
     type: "special",
@@ -299,6 +326,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 0,
     ownedBy: null,
     rent: null,
+    isMortgaged: false,
   },
   {
     id: "london",
@@ -309,6 +337,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "uk",
     ownedBy: null,
     rent: 38,
+    isMortgaged: false,
   },
   {
     id: "treasure3",
@@ -318,6 +347,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 0,
     ownedBy: null,
     rent: null,
+    isMortgaged: false,
   },
   {
     id: "manchester",
@@ -328,6 +358,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "uk",
     ownedBy: null,
     rent: 40,
+    isMortgaged: false,
   },
   {
     id: "liverpool",
@@ -338,6 +369,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "uk",
     ownedBy: null,
     rent: 44,
+    isMortgaged: false,
   },
   {
     id: "jfk-airport",
@@ -347,6 +379,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 200,
     ownedBy: null,
     rent: 25,
+    isMortgaged: false,
   },
   {
     id: "san-francisco",
@@ -357,6 +390,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "usa",
     ownedBy: null,
     rent: 50,
+    isMortgaged: false,
   },
   {
     id: "surprise3",
@@ -366,6 +400,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 0,
     ownedBy: null,
     rent: null,
+    isMortgaged: false,
   },
   {
     id: "new-york",
@@ -376,6 +411,7 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     country: "usa",
     ownedBy: null,
     rent: 100,
+    isMortgaged: false,
   },
   {
     id: "luxury-tax",
@@ -385,8 +421,10 @@ export const BOARD_SPACES: Omit<Space, 'boardSpaces'>[] = [
     price: 100,
     ownedBy: null,
     rent: null,
+    isMortgaged: false,
   },
 ];
+
 
 
 export const surpriseCards:string[] = [

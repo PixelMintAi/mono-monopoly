@@ -41,6 +41,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import TradeDashboard from "@/components/TradeDashboard";
+import { usePathname, useSearchParams } from "next/navigation";
 
 const MonopolyGame: React.FC = () => {
   // Connection state
@@ -74,6 +75,8 @@ const MonopolyGame: React.FC = () => {
     return uuid;
   });
 
+  console.log(playerUUID,'pid')
+
   useEffect(() => {
     if (username !== "") {
       saveToStorage("usernickname", username);
@@ -102,6 +105,29 @@ const MonopolyGame: React.FC = () => {
       poolAmountToEnter: 0.001,
     });
   });
+    const pathname = usePathname();
+  const [fullUrl, setFullUrl] = useState('');
+  const searchParams = useSearchParams();
+  const paramRoomId = searchParams.get('roomId');
+  const [tabValue, settabValue] = useState("createroom")
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setFullUrl(`${window.location.origin}${pathname}`);
+    }
+  }, [pathname]);
+
+  const handleCopy = () => {
+    if(gameState){
+      navigator.clipboard.writeText(fullUrl+`?roomId=${gameState?.roomId}`);
+    }
+  };
+
+  useEffect(()=>{
+    if(paramRoomId){
+      setRoomId(paramRoomId)
+      settabValue("joinroom")
+    }
+  },[paramRoomId])
 
   // Save data to localStorage whenever state changes
   useEffect(() => {
@@ -182,7 +208,7 @@ const MonopolyGame: React.FC = () => {
     });
   };
 
-  const buyProperty = (propertyId:string) => {
+  const buyProperty = (propertyId: string) => {
     if (!socket || !gameState) return;
     socket.emit("buyProperty", {
       roomId: gameState.roomId,
@@ -190,29 +216,46 @@ const MonopolyGame: React.FC = () => {
     });
   };
 
-  const sellProperty=(propertyId:string)=>{
+  const sellProperty = (propertyId: string) => {
     if (!socket || !gameState) return;
-        socket.emit("sellProperty", {
+    socket.emit("sellProperty", {
       roomId: gameState.roomId,
       propertyId: propertyId,
     });
-  }
+  };
 
-  const kickPlayer=(playerId:string)=>{
+  const mortagedProperty=(propertyId: string) => {
     if (!socket || !gameState) return;
-    socket.emit('kickPlayer',{
+    socket.emit("mortageProperty", {
       roomId: gameState.roomId,
-      targetPlayerId:playerId
-    })
-  }
+      propertyId: propertyId,
+    });
+  };
 
-  const handleBankrupcy=(playerId:string)=>{
+    const getBackmortagedProperty=(propertyId: string) => {
     if (!socket || !gameState) return;
-        socket.emit('playerBankrupt',{
+    socket.emit("getBackMortagedProperty", {
       roomId: gameState.roomId,
-      targetPlayerId:playerId
-    })
-  }
+      propertyId: propertyId,
+    });
+  };
+
+
+  const kickPlayer = (playerId: string) => {
+    if (!socket || !gameState) return;
+    socket.emit("kickPlayer", {
+      roomId: gameState.roomId,
+      targetPlayerId: playerId,
+    });
+  };
+
+  const handleBankrupcy = (playerId: string) => {
+    if (!socket || !gameState) return;
+    socket.emit("playerBankrupt", {
+      roomId: gameState.roomId,
+      targetPlayerId: playerId,
+    });
+  };
 
   const endTurn = () => {
     if (!socket || !gameState) return;
@@ -253,18 +296,25 @@ const MonopolyGame: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            <Tabs defaultValue="createroom">
+            <Tabs defaultValue="createroom" value={tabValue}>
               <TabsList className="bg-gray-600 cursor-pointer w-full">
-                <TabsTrigger className="cursor-pointer" value="createroom">
+                <TabsTrigger className="cursor-pointer" value="createroom" onClick={()=>{
+                  settabValue("createroom")
+                }}>
                   Create Room
                 </TabsTrigger>
-                <TabsTrigger className="cursor-pointer" value="joinroom">
+                <TabsTrigger className="cursor-pointer" value="joinroom" onClick={()=>{
+                  settabValue("joinroom")
+                }}>
                   Join Room
                 </TabsTrigger>
                 <TabsTrigger
                   className="cursor-pointer"
                   value="allrooms"
                   disabled={true}
+                  onClick={()=>{
+                  settabValue("allrooms")
+                }}
                 >
                   All Rooms
                 </TabsTrigger>
@@ -439,16 +489,15 @@ const MonopolyGame: React.FC = () => {
       );
     }
 
-    const currentPlayer = getCurrentPlayer();
+    const currentPlayer =  getCurrentPlayer();
     const myTurn = isCurrentPlayerTurn();
 
-    console.log(currentPlayer,'current player')
+    console.log(currentPlayer, "current player");
 
     return (
       <div>
         <Navbar />
         <div className=" pt-[5rem] min-h-screen bg-gradient-to-br from-purple-900 to-indigo-800 p-4">
-
           {/* Error Display */}
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -615,12 +664,34 @@ const MonopolyGame: React.FC = () => {
                           {myTurn ? (
                             currentPlayer?.hasRolled ? (
                               <div className="flex gap-2">
-                                {gameState.boardSpaces[gameState.players[gameState.currentPlayerIndex].position].ownedBy===null &&gameState.boardSpaces[gameState.players[gameState.currentPlayerIndex].position].price!==0 && gameState.players[gameState.currentPlayerIndex].money>=gameState.boardSpaces[gameState.players[gameState.currentPlayerIndex].position].price &&
-                                    (
+                                {gameState.boardSpaces[
+                                  gameState.players[
+                                    gameState.currentPlayerIndex
+                                  ].position
+                                ].ownedBy === null &&
+                                  gameState.boardSpaces[
+                                    gameState.players[
+                                      gameState.currentPlayerIndex
+                                    ].position
+                                  ].price !== 0 &&
+                                  gameState.players[
+                                    gameState.currentPlayerIndex
+                                  ].money >=
+                                    gameState.boardSpaces[
+                                      gameState.players[
+                                        gameState.currentPlayerIndex
+                                      ].position
+                                    ].price && (
                                     <Button
                                       className="cursor-pointer"
                                       onClick={() => {
-                                        buyProperty(gameState.boardSpaces[gameState.players[gameState.currentPlayerIndex].position].id);
+                                        buyProperty(
+                                          gameState.boardSpaces[
+                                            gameState.players[
+                                              gameState.currentPlayerIndex
+                                            ].position
+                                          ].id
+                                        );
                                         // handleBuy();
                                       }}
                                     >
@@ -690,6 +761,14 @@ const MonopolyGame: React.FC = () => {
               <div className="flex justify-between items-center">
                 <h1 className="text-2xl text-black font-bold">
                   Room: {gameState.roomId}
+                  <div className="flex">
+                    <div className="flex p-2 gap-[0.4rem] border rounded cursor-pointer items-center">
+                      <FiCopy />
+                      <text onClick={()=>{
+                        handleCopy()
+                      }}>Copy Game Url</text>
+                    </div>
+                  </div>
                 </h1>
                 <button
                   onClick={() => {
@@ -706,7 +785,7 @@ const MonopolyGame: React.FC = () => {
               </div>
               <AllPlayersInfo
                 players={gameState.players}
-               currentPlayer={currentPlayer}
+                currentPlayer={currentPlayer}
                 gameStarted={gameState.gameStarted}
                 gameState={gameState}
                 playerUUID={playerUUID}
@@ -715,7 +794,9 @@ const MonopolyGame: React.FC = () => {
               />
               {gameState.gameStarted && (
                 <div className="flex justify-between pl-4 pr-4 mb-4">
-                  <Button className="cursor-pointer" disabled={true}>Votekick</Button>
+                  <Button className="cursor-pointer" disabled={true}>
+                    Votekick
+                  </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline" className="cursor-pointer">
@@ -739,9 +820,9 @@ const MonopolyGame: React.FC = () => {
                         </AlertDialogCancel>
                         <AlertDialogAction
                           className="cursor-pointer bg-red-500 hover:bg-red-600"
-                          onClick={()=>{
-                            if(currentPlayer){
-                              handleBankrupcy(currentPlayer.id)
+                          onClick={() => {
+                            if (currentPlayer) {
+                              handleBankrupcy(currentPlayer.id);
                             }
                           }}
                         >
@@ -755,7 +836,7 @@ const MonopolyGame: React.FC = () => {
               {gameState.gameStarted && (
                 <TradeDashboard
                   players={gameState?.players}
-                  selfUserId={currentPlayer?.id ??""}
+                  selfUserId={currentPlayer?.id ?? ""}
                   socket={socket}
                   roomId={gameState.roomId}
                 />
@@ -778,6 +859,8 @@ const MonopolyGame: React.FC = () => {
                     (item) => item?.uuid === currentPlayer?.uuid
                   )}
                   sellProperty={sellProperty}
+                  mortageProperty={mortagedProperty}
+                  getBackMortagedProperty={getBackmortagedProperty}
                 />
               )}
             </div>

@@ -105,6 +105,23 @@ export const setupSocketHandlers = (
     // setAvailableProperty(data);
   });
 
+    socket.on("propertyMortaged", (data) => {
+    setMessages((prev) => {
+      const newMessages = [...prev, `Property Mortaged by player ${data.playerId}`];
+      saveToStorage("messages", newMessages);
+      return newMessages;
+    });
+    // setAvailableProperty(data);
+  });
+      socket.on("propertyRemovedFromMortaged", (data) => {
+    setMessages((prev) => {
+      const newMessages = [...prev, `Property Bought back by player ${data.playerId}`];
+      saveToStorage("messages", newMessages);
+      return newMessages;
+    });
+    // setAvailableProperty(data);
+  });
+
   socket.on("turnChanged", (data) => {
     setMessages((prev) => {
       const newMessages = [

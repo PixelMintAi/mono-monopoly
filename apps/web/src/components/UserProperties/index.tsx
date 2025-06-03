@@ -7,9 +7,11 @@ interface UserPropertiesProps {
   players: Player[]
   currentPlayerIndex: number;
   sellProperty:any
+  mortageProperty:any
+  getBackMortagedProperty:any
 }
 
-const UserProperties = ({ players, currentPlayerIndex,sellProperty }: UserPropertiesProps) => {
+const UserProperties = ({ players, currentPlayerIndex,sellProperty,mortageProperty,getBackMortagedProperty }: UserPropertiesProps) => {
   // Guard clause for invalid states
   if (!players?.length) {
     return (
@@ -43,13 +45,24 @@ const UserProperties = ({ players, currentPlayerIndex,sellProperty }: UserProper
         </div>
         <div className='mb-4'>
           {currentPlayer.properties?.map((property, index) => (
-            <div className='p-2 flex w-full' key={`${property.name}-${index}`}>
+            <div className='p-2 flex w-full justify-between' key={`${property.name}-${index}`}>
               {property.name}
-              <Button onClick={()=>{
-                sellProperty(property.id)
-              }}>
-                Sell
-              </Button>
+              <div className='flex gap-[1rem]'>
+                {!property.isMortgaged ?<Button className='cursor-pointer' onClick={()=>{
+                  mortageProperty(property.id)
+                }}>
+                  Mortage
+                </Button>:<Button className='cursor-pointer' onClick={()=>{
+                  getBackMortagedProperty(property.id)
+                }}>
+                  Remove Mortage
+                </Button>}
+                <Button className='cursor-pointer' onClick={()=>{
+                  sellProperty(property.id)
+                }}>
+                  Sell
+                </Button>
+              </div>
             </div>
           )) ?? (
             <div className="text-center text-muted-foreground">No properties owned</div>
