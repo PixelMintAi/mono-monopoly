@@ -292,7 +292,7 @@ const MonopolyGame: React.FC = () => {
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-4xl text-center text-emerald-400">
-              Monopoly
+              Moonopoly
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -321,7 +321,7 @@ const MonopolyGame: React.FC = () => {
               </TabsList>
               <TabsContent value="createroom">
                 <div>
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="username">Enter Username</Label>
                   <Input
                     id="username"
                     value={username}
@@ -330,7 +330,7 @@ const MonopolyGame: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="roomId">Room ID</Label>
+                  <Label htmlFor="roomId">Enter Room ID</Label>
                   <Input
                     id="roomId"
                     value={roomId}
@@ -410,7 +410,7 @@ const MonopolyGame: React.FC = () => {
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="poolEntry">Enter Pool Amount</Label>
+                    <Label htmlFor="poolEntry">Enter Pool Amount (ETH)</Label>
                     <Input
                       id="poolEntry"
                       type="number"
@@ -430,7 +430,7 @@ const MonopolyGame: React.FC = () => {
                   <Button
                     onClick={createRoom}
                     disabled={!connected || !username || !roomId}
-                    className="flex-1 mt-[1rem]"
+                    className="flex-1 mt-[1rem] cursor-pointer"
                   >
                     Create Room
                   </Button>
@@ -438,7 +438,7 @@ const MonopolyGame: React.FC = () => {
               </TabsContent>
               <TabsContent value="joinroom">
                 <div>
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="username">Enter Username</Label>
                   <Input
                     id="username"
                     value={username}
@@ -447,7 +447,7 @@ const MonopolyGame: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="roomId">Room ID</Label>
+                  <Label htmlFor="roomId">Enter Room ID</Label>
                   <Input
                     id="roomId"
                     value={roomId}
@@ -459,7 +459,7 @@ const MonopolyGame: React.FC = () => {
                   <Button
                     onClick={joinRoom}
                     disabled={!connected || !username || !roomId}
-                    className="flex-1"
+                    className="flex-1 cursor-pointer"
                   >
                     Join Room
                   </Button>
@@ -496,8 +496,8 @@ const MonopolyGame: React.FC = () => {
 
     return (
       <div>
-        <Navbar />
-        <div className=" pt-[5rem] min-h-screen bg-gradient-to-br from-purple-900 to-indigo-800 p-4">
+        {/* <Navbar /> */}
+        <div className=" min-h-screen bg-gradient-to-br from-purple-900 to-indigo-800 p-4">
           {/* Error Display */}
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -514,10 +514,10 @@ const MonopolyGame: React.FC = () => {
               {/* <CardHeader className="bg-emerald-600 text-white p-4 rounded-t-lg flex justify-between">
                 <span>Room {gameState.roomId}</span>
               </CardHeader> */}
-              <CardContent className="p-2 bg-transparent border-0 rounded-lg">
+              <CardContent className="p-0 bg-transparent border-0 rounded-lg">
                 <div
                   ref={containerRef}
-                  className="relative w-full aspect-square bg-gray-900 rounded-lg overflow-hidden max-h-[85vh]"
+                  className="relative w-full aspect-square bg-gray-900 rounded-lg overflow-hidden max-h-[95vh]"
                 >
                   {/* Game board */}
                   <div className="absolute inset-0 grid grid-cols-11 grid-rows-11 gap-1 p-4">
@@ -598,7 +598,7 @@ const MonopolyGame: React.FC = () => {
                     <div className="col-start-3 col-span-7 row-start-3 row-span-7 rounded-lg flex flex-col items-center justify-center">
                       {/* Game logo */}
                       <h1 className="text-4xl font-bold text-yellow-400 mb-8">
-                        TRAVEL MONOPOLY
+                        MOONOPOLY
                       </h1>
 
                       {/* Dice */}
@@ -757,12 +757,12 @@ const MonopolyGame: React.FC = () => {
             </Card>
 
             {/* Sidebar */}
-            <div className="">
+            <div className="p-2 flex flex-col gap-4">
               <div className="flex justify-between items-center">
-                <h1 className="text-2xl text-black font-bold">
+                <h1 className="text-2xl text-white font-bold">
                   Room: {gameState.roomId}
                   <div className="flex">
-                    <div className="flex p-2 gap-[0.4rem] border rounded cursor-pointer items-center">
+                    <div className="flex p-2 gap-[0.4rem] border rounded-lg cursor-pointer items-center">
                       <FiCopy />
                       <text onClick={()=>{
                         handleCopy()
@@ -778,7 +778,7 @@ const MonopolyGame: React.FC = () => {
                     setWaitingStatus(null);
                     setMessages([]);
                   }}
-                  className="bg-red-700 text-white px-4 py-2 rounded-md hover:bg-gray-700"
+                  className="bg-red-700 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-red-800"
                 >
                   Leave Game
                 </button>
@@ -793,7 +793,7 @@ const MonopolyGame: React.FC = () => {
                 kickPlayer={kickPlayer}
               />
               {gameState.gameStarted && (
-                <div className="flex justify-between pl-4 pr-4 mb-4">
+                <div className="flex justify-between mb-4">
                   <Button className="cursor-pointer" disabled={true}>
                     Votekick
                   </Button>

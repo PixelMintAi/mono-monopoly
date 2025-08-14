@@ -27,7 +27,7 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ space }) => {
       case 'city':
         return (
           <div className="flex flex-col items-center cursor-pointer">
-            <div className="text-sm font-bold">{space.name}</div>
+            <div className="text-xs font-bold">{space.name}</div>
             {/* {space.country && (
               <div className="text-xl">{countryFlags[space.country]}</div>
             )} */}
@@ -37,49 +37,49 @@ const BoardSpace: React.FC<BoardSpaceProps> = ({ space }) => {
       case 'airport':
         return (
           <div className="flex flex-col items-center cursor-pointer">
-            <div className="text-sm font-bold">{space.name}</div>
-            <div className="text-xl">✈️</div>
+            <div className="text-xs font-bold">{space.name}</div>
+            <div className="text-xs">✈️</div>
             <div className="text-xs mt-1">${space.price}</div>
           </div>
         );
       case 'surprise':
         return (
           <div className="flex flex-col items-center">
-            <div className="text-sm font-bold">Surprise</div>
-            <div className="text-xl">❓</div>
+            <div className="text-xs font-bold">Surprise</div>
+            <div className="text-xs">❓</div>
           </div>
         );
       case 'treasure':
         return (
           <div className="flex flex-col items-center">
-            <div className="text-sm font-bold">Treasure</div>
-            <div className="text-xl">🎁</div>
+            <div className="text-xs font-bold">Treasure</div>
+            <div className="text-xs">🎁</div>
           </div>
         );
       case 'tax':
         return (
           <div className="flex flex-col items-center">
-            <div className="text-sm font-bold">{space.name}</div>
-            <div className="text-xl">💰</div>
+            <div className="text-xs font-bold">{space.name}</div>
+            <div className="text-xs">💰</div>
             <div className="text-xs mt-1">Pay ${space.price}</div>
           </div>
         );
       case 'utility':
         return (
           <div className="flex flex-col items-center cursor-pointer">
-            <div className="text-sm font-bold">{space.name}</div>
-            <div className="text-xl">{space.name.includes('Water') ? '💧' : '⚡'}</div>
+            <div className="text-xs font-bold">{space.name}</div>
+            {/* <div className="text-xs">{space.name.includes('Water') ? '💧' : '⚡'}</div> */}
             <div className="text-xs mt-1">${space.price}</div>
           </div>
         );
       case 'special':
         return (
           <div className="flex flex-col items-center">
-            <div className="text-sm font-bold">{space.name}</div>
-            {space.name === 'START' && <div className="text-xl">▶️</div>}
-            {space.name === 'In Prison' && <div className="text-xl">🔒</div>}
-            {space.name === 'Go to Prison' && <div className="text-xl">⚓</div>}
-            {space.name === 'Vacation' && <div className="flex text-sm">🏝️ ${space.price}</div>}
+            <div className="text-xs font-bold">{space.name}</div>
+            {space.name === 'START' && <div className="text-xs">▶️</div>}
+            {space.name === 'In Prison' && <div className="text-xs">🔒</div>}
+            {space.name === 'Go to Prison' && <div className="text-xs">⚓</div>}
+            {space.name === 'Vacation' && <div className="flex text-xs">🏝️ ${space.price}</div>}
           </div>
         );
       default:

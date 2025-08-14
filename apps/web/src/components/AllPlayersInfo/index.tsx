@@ -22,9 +22,9 @@ const AllPlayersInfo = ({
   kickPlayer:(playerId:string)=>void
 }) => {
   return (
-    <div className="flex flex-col p-4 ml-2">
+    <div className="flex flex-col">
       <div>All Players</div>
-      <div className="bg-amber-700 p-2 rounded flex flex-col gap-2">
+      <div className="bg-amber-700 p-4 rounded-lg flex flex-col gap-2 mt-2">
         {players
           .map((player: Player, index: number) => (
             <div
@@ -55,7 +55,7 @@ const AllPlayersInfo = ({
                   kickPlayer(player.id)
                 }}
               >
-                Kick
+                Kick Player
               </Button>
               }
               {gameStarted && (

@@ -15,7 +15,7 @@ const UserProperties = ({ players, currentPlayerIndex,sellProperty,mortageProper
   // Guard clause for invalid states
   if (!players?.length) {
     return (
-      <Card className="ml-6 mr-4 p-2 bg-destructive/10">
+      <Card className="p-4 bg-destructive/10">
         <CardContent className="p-2 text-destructive">
           No players available
         </CardContent>
@@ -26,7 +26,7 @@ const UserProperties = ({ players, currentPlayerIndex,sellProperty,mortageProper
   // Validate currentPlayerIndex
   if (currentPlayerIndex < 0 || currentPlayerIndex >= players.length) {
     return (
-      <Card className="ml-6 mr-4 p-2 bg-destructive/10">
+      <Card className="p-4 bg-destructive/10">
         <CardContent className="p-2 text-destructive">
           Invalid player selected
         </CardContent>
@@ -38,9 +38,9 @@ const UserProperties = ({ players, currentPlayerIndex,sellProperty,mortageProper
   const propertyCount = currentPlayer.properties?.length ?? 0
 
   return (
-    <Card className="flex flex-col ml-6 mr-4 p-2 bg-fuchsia-950">
+    <Card className="flex flex-col p-4 bg-fuchsia-950 rounded-lg">
       <CardContent className="p-2">
-        <div className='w-full text-center mb-4'>
+        <div className='w-full text-center mb-4 text-white'>
           My Properties ({propertyCount})
         </div>
         <div className='mb-4'>

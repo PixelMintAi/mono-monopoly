@@ -175,7 +175,7 @@ const TradeDashboard = ({
   const selectedTradeUserProperties = tradeUserSelected ? findPlayerById(tradeUserSelected)?.properties || [] : [];
 
   return (
-    <div className="flex flex-col ml-6 mr-4 p-2 mb-4 bg-fuchsia-950 rounded">
+    <div className="flex flex-col p-4  bg-fuchsia-950 rounded-lg">
       <div className="w-full text-center font-bold text-lg">Trades</div>
       <div className="flex justify-between items-center mt-2">
         <div className="flex gap-2 items-center">

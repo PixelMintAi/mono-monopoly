@@ -40,7 +40,7 @@ const GameSettings = ({
   },[roomSettings])
 
   return (
-    <div className="flex flex-col ml-6 mr-4 p-2 bg-fuchsia-950 rounded">
+    <div className="flex flex-col  p-4 bg-fuchsia-950 rounded-lg">
       <text className="w-full text-center">Game Settings</text>
       <div className="flex flex-col gap-4 mt-4">
         <div className="flex items-center justify-between">
